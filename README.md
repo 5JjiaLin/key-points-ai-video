@@ -49,16 +49,21 @@
 
 主视觉使用用户授权的“65°C 有多烫”展开卡，展示“轻提示 → 展开解释”的实际产品表达。
 
+<p align="center">
+  <img src="docs/assets/product/chain1-65c-expanded.png" alt="链路 1：65°C 有多烫展开卡" width="360" />
+</p>
+
 ### 链路 2：单视频知识导航
 
 链路 2 不把“出现关键词的瞬间”当作知识点，而是绑定完整解释区间，并保留问题、答案、证据引用和审核状态。H5 只消费通过公开契约的稳定结果，不暴露候选卡、选择分数或内部审核 Trace。
 
+<p align="center">
+  <img src="docs/assets/product/chain2-knowledge-page.png" alt="链路 2：单视频知识点页面" width="360" />
+</p>
+
 ### 链路 3：多视频知识重构
 
 链路 3 只接受 **3–10 条已完成解析、主题相关的视频**。它复用链路 2 的知识产物，不重复执行 ASR、OCR 或关键帧抽取。
-
-<details>
-<summary><strong>查看链路 3 五步产品流程设计</strong></summary>
 
 > 下列原始设计截图用于说明目标流程；当前 H5 是可运行实现，但视觉并非像素级复刻。
 
@@ -70,23 +75,9 @@
 | --- | --- |
 | <img src="docs/assets/product/chain3-04-analysis-progress.png" alt="AI 分析进度" width="280" /> | <img src="docs/assets/product/chain3-05-knowledge-timeline.png" alt="知识经纬结果" width="280" /> |
 
-</details>
-
 长期产品规则见 [链路 3 产品说明](docs/chain3-product.md)。
 
-## 可运行证据
-
-<p align="center">
-  <img src="docs/assets/product-demo.png" alt="当前 H5：时间轴、理解补丁与知识地图" width="100%" />
-</p>
-
-<p align="center">
-  <img src="docs/assets/demo-timeline.png" alt="视频时间轴" width="31%" />
-  <img src="docs/assets/demo-understanding-patch.png" alt="理解补丁" width="31%" />
-  <img src="docs/assets/demo-knowledge-map.png" alt="知识地图" width="31%" />
-</p>
-
-以上 H5 图片来自仓库内 Fixture，可零密钥复现。灰色视频区域用于避免把无公开授权的第三方视频放入仓库。真实视频上传、ASR、OCR、关键帧抽取及后端链路的验证边界见 [真实视频验证记录](docs/real-video-validation.md)。
+三条链路的页面路由与 Fixture 均可在本地 H5 复现。真实视频上传、ASR、OCR、关键帧抽取及后端链路的验证边界见 [真实视频验证记录](docs/real-video-validation.md)。
 
 ## 架构
 
