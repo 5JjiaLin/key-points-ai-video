@@ -1,0 +1,49 @@
+{
+  "case_id": "earth_evolution_multi_creator",
+  "description": "测试同义标准化、不同维度不合并、多因素互补和时间路径",
+  "source_knowledge_points": [
+    {
+      "id": "sk1",
+      "statement": "太阳系早期尘埃和岩石通过碰撞逐步聚集成原行星",
+      "dimension": "process"
+    },
+    {
+      "id": "sk2",
+      "statement": "早期物质在引力作用下不断聚集形成原行星",
+      "dimension": "process"
+    },
+    {
+      "id": "sk3",
+      "statement": "放射性元素衰变持续为地球内部提供热量",
+      "dimension": "cause"
+    },
+    {
+      "id": "sk4",
+      "statement": "地球形成时留下的残余热仍保存在内部",
+      "dimension": "cause"
+    }
+  ],
+  "expected": {
+    "merge_groups": [
+      [
+        "sk1",
+        "sk2"
+      ]
+    ],
+    "non_merge_pairs": [
+      [
+        "sk3",
+        "sk4"
+      ]
+    ],
+    "source_alignment": [
+      {
+        "ids": [
+          "sk3",
+          "sk4"
+        ],
+        "type": "perspective_complement"
+      }
+    ]
+  }
+}

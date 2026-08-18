@@ -5,6 +5,7 @@ import type {
   VideoKnowledgePoint,
   VideoProject,
 } from '../domain/video'
+import { resolveSupplementPresentation } from './supplementPresentation'
 
 const millisecondsToSeconds = (value: number) => value / 1000
 
@@ -14,7 +15,11 @@ export function adaptChain1Harness(
   if (output.status === 'failed') return []
 
   return output.supplements
-    .map((item) => ({
+    .filter((item) => item.displayMode === 'auto_prompt')
+    .map((item) => {
+      const presentation = resolveSupplementPresentation(item)
+
+      return {
       id: item.id,
       type: item.type,
       sourceText: item.sourceText,
@@ -24,13 +29,26 @@ export function adaptChain1Harness(
       displayMode: item.displayMode,
       question: item.question,
       answer: item.answer,
-      helperText: item.subtitle ?? item.answerLabel ?? '查看补充',
+      helperText: presentation.helperText,
       ...(item.answerLabel ? { answerLabel: item.answerLabel } : {}),
-      renderMode: item.renderMode,
-      ...(item.cardImageUrl ? { cardImageUrl: item.cardImageUrl } : {}),
+      ...(presentation.cardVariant ? { cardVariant: presentation.cardVariant } : {}),
+      ...(presentation.cardVariant === 'viewpoint_clarification' && item.leftColumn
+        ? { leftColumn: item.leftColumn }
+        : {}),
+      ...(presentation.cardVariant === 'viewpoint_clarification' && item.rightColumn
+        ? { rightColumn: item.rightColumn }
+        : {}),
+      ...(presentation.sourceCount !== undefined ? { sourceCount: presentation.sourceCount } : {}),
+      ...(presentation.sourceAction ? { sourceAction: presentation.sourceAction } : {}),
+      renderMode: presentation.renderMode,
+      ...(item.hintStickerImageUrl ? { hintStickerImageUrl: item.hintStickerImageUrl } : {}),
+      ...(item.hintStickerWidth ? { hintStickerWidth: item.hintStickerWidth } : {}),
+      ...(item.hintStickerHeight ? { hintStickerHeight: item.hintStickerHeight } : {}),
+      ...(presentation.cardImageUrl ? { cardImageUrl: presentation.cardImageUrl } : {}),
       ...(item.cardWidth ? { cardWidth: item.cardWidth } : {}),
       ...(item.cardHeight ? { cardHeight: item.cardHeight } : {}),
-    }))
+      }
+    })
     .sort((left, right) => left.triggerTime - right.triggerTime)
 }
 

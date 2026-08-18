@@ -5,3 +5,9 @@ useDefault = true
 description = "Documentation-only API key placeholder"
 regexTarget = "secret"
 regexes = ['''YOUR_API_KEY''']
+
+[[allowlists]]
+description = "Browser localStorage key, not a credential"
+paths = ['''h5/src/App\.tsx''']
+regexTarget = "secret"
+regexes = ['''huazhongdian\.chain3Question''']

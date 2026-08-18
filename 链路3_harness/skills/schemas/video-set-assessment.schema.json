@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VideoSetAssessment",
+  "type": "object",
+  "required": [
+    "theme",
+    "recommended_analysis_mode",
+    "included_videos",
+    "excluded_videos",
+    "status",
+    "issues"
+  ],
+  "properties": {
+    "theme": {
+      "type": "object",
+      "required": [
+        "theme_id",
+        "title",
+        "scope_statement",
+        "confidence"
+      ],
+      "properties": {
+        "theme_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope_statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domain": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "recommended_analysis_mode": {
+      "enum": [
+        "single_creator_series",
+        "multi_creator_topic"
+      ]
+    },
+    "included_videos": {
+      "type": "array"
+    },
+    "excluded_videos": {
+      "type": "array"
+    },
+    "series_hints": {
+      "type": "array"
+    },
+    "coverage_preview": {
+      "type": "object"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "partial",
+        "failed",
+        "needs_review"
+      ]
+    },
+    "issues": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": true
+}

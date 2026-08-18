@@ -1,4 +1,5 @@
-import type { VideoProject, VideoProjectDto } from '../domain/video'
+import type { VideoProject, VideoProjectDto, VideoShowcaseDto } from '../domain/video'
+import { resolveSupplementPresentation } from './supplementPresentation'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
@@ -30,6 +31,14 @@ export async function uploadVideo(file: File): Promise<{ jobId: string }> {
   return requestJson(`${API_BASE}/api/videos`, { method: 'POST', body: form })
 }
 
+export async function uploadDouyinVideo(url: string): Promise<{ jobId: string }> {
+  return requestJson(`${API_BASE}/api/videos/from-douyin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+}
+
 export async function getJobStatus(jobId: string): Promise<AnalysisJobStatus> {
   return requestJson(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}`)
 }
@@ -39,6 +48,12 @@ export async function getJobResult(jobId: string): Promise<VideoProject> {
     `${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/result`,
   )
   return adaptVideoProjectDto(dto)
+}
+
+export async function getShowcase(): Promise<VideoProject[]> {
+  const dto = await requestJson<VideoShowcaseDto>(`${API_BASE}/api/showcase`)
+  if (dto.schemaVersion !== 'video-showcase.v1') throw new Error('不支持的展示清单版本')
+  return dto.items.map(adaptVideoProjectDto)
 }
 
 export async function retryJob(jobId: string): Promise<void> {
@@ -78,6 +93,7 @@ export function adaptVideoProjectDto(dto: VideoProjectDto): VideoProject {
     title: dto.title,
     creator: dto.creator,
     duration: dto.durationMs / 1000,
+    ...(dto.category ? { category: dto.category } : {}),
     videoUrl: mediaUrl(dto.videoUrl),
     transcript: dto.transcriptSegments.map((item) => ({
       id: item.id,
@@ -97,7 +113,10 @@ export function adaptVideoProjectDto(dto: VideoProjectDto): VideoProject {
       ...(item.taskType ? { taskType: item.taskType } : {}),
       evidenceSegmentIds: item.evidenceSegmentIds,
     })),
-    supplements: dto.supplements.map((item) => ({
+    supplements: dto.supplements.filter((item) => item.displayMode === 'auto_prompt').map((item) => {
+      const presentation = resolveSupplementPresentation(item)
+
+      return {
       id: item.id,
       type: item.type,
       sourceText: item.sourceText,
@@ -107,14 +126,29 @@ export function adaptVideoProjectDto(dto: VideoProjectDto): VideoProject {
       displayMode: item.displayMode,
       question: item.question,
       answer: item.answer,
-      helperText: item.subtitle ?? item.answerLabel ?? '查看补充',
+      helperText: presentation.helperText,
       ...(item.answerLabel ? { answerLabel: item.answerLabel } : {}),
-      renderMode: item.renderMode,
-      ...(item.cardImageUrl ? { cardImageUrl: mediaUrl(item.cardImageUrl) } : {}),
+      ...(presentation.cardVariant ? { cardVariant: presentation.cardVariant } : {}),
+      ...(presentation.cardVariant === 'viewpoint_clarification' && item.leftColumn
+        ? { leftColumn: item.leftColumn }
+        : {}),
+      ...(presentation.cardVariant === 'viewpoint_clarification' && item.rightColumn
+        ? { rightColumn: item.rightColumn }
+        : {}),
+      ...(presentation.sourceCount !== undefined ? { sourceCount: presentation.sourceCount } : {}),
+      ...(presentation.sourceAction ? { sourceAction: presentation.sourceAction } : {}),
+      renderMode: presentation.renderMode,
+      ...(item.hintStickerImageUrl
+        ? { hintStickerImageUrl: mediaUrl(item.hintStickerImageUrl) }
+        : {}),
+      ...(item.hintStickerWidth ? { hintStickerWidth: item.hintStickerWidth } : {}),
+      ...(item.hintStickerHeight ? { hintStickerHeight: item.hintStickerHeight } : {}),
+      ...(presentation.cardImageUrl ? { cardImageUrl: mediaUrl(presentation.cardImageUrl) } : {}),
       ...(item.cardWidth ? { cardWidth: item.cardWidth } : {}),
       ...(item.cardHeight ? { cardHeight: item.cardHeight } : {}),
       evidenceSegmentIds: item.evidenceSegmentIds,
-    })),
+      }
+    }),
   }
 }
 

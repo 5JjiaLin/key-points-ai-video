@@ -1,0 +1,34 @@
+{
+  "requested_analysis_mode": "multi_creator_topic",
+  "theme_hint": "地球形成与早期演化",
+  "research_question": "将这些地球演化知识按照时间和因果顺序整理",
+  "videos": [
+    {
+      "video_id": "v001",
+      "creator_id": "c001",
+      "title": "地球最初是如何形成的",
+      "duration_ms": 180000,
+      "content_version": "1",
+      "asr_summary": "太阳系早期物质吸积、碰撞与地球形成",
+      "asr_segments": [{"id":"v1s1","start_ms":10000,"end_ms":50000,"text":"尘埃和岩石在引力作用下聚集"}]
+    },
+    {
+      "video_id": "v002",
+      "creator_id": "c002",
+      "title": "地球内部为什么一直很热",
+      "duration_ms": 160000,
+      "content_version": "1",
+      "asr_summary": "残余热和放射性元素衰变共同维持地球内部热量",
+      "asr_segments": [{"id":"v2s1","start_ms":20000,"end_ms":90000,"text":"地球内部热量有多个来源"}]
+    },
+    {
+      "video_id": "v003",
+      "creator_id": "c003",
+      "title": "大氧化事件如何改变地球",
+      "duration_ms": 190000,
+      "content_version": "1",
+      "asr_summary": "大氧化事件的定义、原因和生命影响",
+      "asr_segments": [{"id":"v3s1","start_ms":15000,"end_ms":150000,"text":"大气氧气显著增加并改变生命演化"}]
+    }
+  ]
+}
