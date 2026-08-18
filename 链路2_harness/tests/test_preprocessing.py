@@ -56,7 +56,7 @@ class PreprocessingTests(unittest.TestCase):
         self.assertEqual(len(segments), 2)
         self.assertEqual(segments[0]["asrSegmentIds"], ["asr-1"])
 
-    def test_ocr_selection_prioritizes_numbers_and_visual_cues(self) -> None:
+    def test_ocr_selection_only_samples_abstract_quantity_window(self) -> None:
         timestamps = select_ocr_timestamps(
             semantic_segments=[
                 {"startMs": 10000, "endMs": 20000, "text": "65℃是什么概念"},
@@ -67,8 +67,8 @@ class PreprocessingTests(unittest.TestCase):
             scene_timestamps=[45.0],
             max_frames=4,
         )
-        self.assertIn(15.0, timestamps)
-        self.assertIn(45.0, timestamps)
+        self.assertEqual(timestamps, [12.5, 15.0, 17.5])
+        self.assertNotIn(45.0, timestamps)
 
     def test_preprocess_case_writes_both_chain_contracts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

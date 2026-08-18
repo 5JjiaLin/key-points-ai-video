@@ -12,16 +12,49 @@ const skills: SkillRegistry = {
         selected_candidates: [
           {
             source_span: "65℃",
+            span_verbatim: true,
+            candidate_role: "unresolved_candidate",
+            author_concretization_check: { already_concretized: false },
+            intuitive_mapping: {
+              user_missing_experience: "用户不知道65℃入口时是什么体感",
+              target_takeaway: "已经明显烫口，需要小口慢饮",
+              nodes: [
+                {
+                  value_label: "37℃",
+                  familiar_reference: "接近体温",
+                  visible_state: "装有温水的透明水杯",
+                  experience_or_action: "感觉温热",
+                },
+                {
+                  value_label: "50℃",
+                  familiar_reference: "明显偏热",
+                  visible_state: "冒少量热气的茶杯",
+                  experience_or_action: "入口较烫",
+                },
+                {
+                  value_label: "65℃",
+                  familiar_reference: "已经很烫",
+                  visible_state: "冒明显热气的水杯和轻微烫嘴表情",
+                  experience_or_action: "需要小口慢饮",
+                },
+                {
+                  value_label: "100℃",
+                  familiar_reference: "沸水温度",
+                  visible_state: "正在沸腾并冒大量热气的水壶",
+                  experience_or_action: "不能直接喝",
+                },
+              ],
+            },
             abstract_data_score: 0.91,
             trigger_level: "auto_prompt",
             trigger_at_ms: input.candidate.endMs + 500,
             visualization: {
               qa_region: {
                 question: "65℃有多烫？",
-                answer: "已经明显烫口，不再只是温热",
+                answer: "已经明显烫口，需要小口慢饮",
               },
               image_prompt:
-                "生成一张严格310×180的完整深色科普卡片。顶部问题：65℃有多烫？答案：已经明显烫口，不再只是温热。底部用37℃、50℃、65℃三档温度刻度和少量贴图表达，65℃高亮。",
+                "顶部问题：65℃有多烫？主体横向均匀排列37℃、50℃、65℃、100℃四组具体贴图参照，每组包含温度、核心判断和极短说明，用珊瑚红圆角框高亮65℃。",
             },
           },
         ],
@@ -60,8 +93,8 @@ const skills: SkillRegistry = {
         ranking: { intervention_value_score: 84, display_action: "auto_prompt" },
         generated_content: {
           question: "冰水一定都不健康吗？",
-          answer_label: "表达过于绝对",
-          short_answer: "不能一概而论，需要结合人群、饮用量和身体状态判断。",
+          answer_label: "需分情况",
+          short_answer: "研究更多提示短时胃动力与个体反应差异，不能只用健康或不健康概括。",
         },
         trigger: { trigger_at_ms: input.candidate.endMs + 500 },
       };

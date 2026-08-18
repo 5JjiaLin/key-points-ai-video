@@ -114,7 +114,7 @@ QUESTION_STYLES = {
     "抽象概念 / 社会经济型",
 }
 
-REWATCH_SUFFIXES = [
+VIDEO_GUIDANCE_TERMS = [
     "视频里有详解",
     "详细过程看视频",
     "具体看视频讲解",
@@ -125,6 +125,15 @@ REWATCH_SUFFIXES = [
     "视频里拆开讲",
     "看视频对比",
     "视频里有数据",
+    "回看",
+    "原视频",
+    "视频中",
+    "视频会",
+    "视频将",
+    "对应讲解",
+    "对应片段",
+    "继续观看",
+    "点击查看",
 ]
 
 PASSING_AUDIT_GRADES = {"S", "A"}
@@ -158,13 +167,6 @@ MISCONCEPTION_EXAM_PATTERNS = [
         r"是什么",
     ]
 ]
-NOUN_HANGING_REWATCH_PATTERNS = [
-    re.compile(pattern)
-    for pattern in [
-        r"(路径|机制|原理|趋势|过程|原因|逻辑|本质)视频里(有详解|有数据|讲得更细)",
-        r"(路径|机制|原理|趋势|过程|原因|逻辑|本质)看视频",
-    ]
-]
 HARD_AUDIT_DIMENSIONS = {
     "hook_readability",
     "hook_question_quality",
@@ -182,8 +184,8 @@ HARD_RULE_REASON_PREFIXES = (
     "hook is not phrased as a question",
     "misconception hook is not phrased as user inner voice",
     "answer length",
-    "answer relies on generic replay wording",
-    "answer suffix is not naturally connected",
+    "answer contains video guidance",
+    "answer introduces a new question",
 )
 
 
@@ -286,18 +288,18 @@ def rule_check_card(card: RecoveryCard, knowledge_points: list[KnowledgePoint]) 
         score -= 0.9
         reasons.append("misconception hook is not phrased as user inner voice")
 
-    if not 20 <= answer_len <= 40:
+    if not 20 <= answer_len <= 90:
         score -= 0.8
-        reasons.append(f"answer length {answer_len} outside 20-40")
+        reasons.append(f"answer length {answer_len} outside 20-90")
     if _only_judgment(card.highlight_answer):
         score -= 1.0
         reasons.append("answer only gives a yes/no judgment")
-    if _relies_on_generic_rewatch_wording(card.highlight_answer):
+    if any(term in card.highlight_answer for term in VIDEO_GUIDANCE_TERMS):
+        score -= 1.0
+        reasons.append("answer contains video guidance")
+    if _question_count(card.highlight_answer) > 0:
         score -= 0.8
-        reasons.append("answer relies on generic replay wording")
-    if _has_noun_hanging_rewatch_suffix(card.highlight_answer):
-        score -= 0.8
-        reasons.append("answer suffix is not naturally connected")
+        reasons.append("answer introduces a new question")
     if any(term in card.highlight_answer for term in TRAINING_TONE_TERMS):
         score -= 0.6
         reasons.append("answer contains abstract/training-tone wording")
@@ -1018,22 +1020,6 @@ def _allows_extended_hook_limit(card: RecoveryCard) -> bool:
 def _looks_like_concept_exam_hook(text: str) -> bool:
     compact = re.sub(r"\s+", "", text)
     return any(pattern.search(compact) for pattern in MISCONCEPTION_EXAM_PATTERNS)
-
-
-def _has_noun_hanging_rewatch_suffix(text: str) -> bool:
-    compact = re.sub(r"\s+", "", text)
-    return any(pattern.search(compact) for pattern in NOUN_HANGING_REWATCH_PATTERNS)
-
-
-def _relies_on_generic_rewatch_wording(text: str) -> bool:
-    compact = re.sub(r"\s+", "", text)
-    for suffix in ["视频里有详解", "具体看视频讲解", "详细过程看视频"]:
-        if suffix not in compact:
-            continue
-        answer_prefix = compact.split(suffix, 1)[0].rstrip("，,。；;：:")
-        if _visible_len(answer_prefix) < 12 or _only_judgment(answer_prefix):
-            return True
-    return False
 
 
 def _looks_like_statement(text: str) -> bool:

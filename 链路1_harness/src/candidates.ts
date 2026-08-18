@@ -1,7 +1,7 @@
 import type { CandidateWindow, EnvironmentSnapshot, SemanticSegment } from "./domain.js";
 
 const NUMBER_RE = /\d+(?:\.\d+)?|[一二三四五六七八九十百千万亿兆]+/;
-const UNIT_RE = /(℃|度|伏|V|安|A|瓦|W|米|公里|光年|秒|分钟|小时|年|%|倍|亿元|万亿元|公斤|克|焦耳|概率|风险)/i;
+const UNIT_RE = /(℃|度|伏|V(?![A-Za-z])|安|A(?!类)|瓦|W|米|公里|光年|秒|分钟|小时|年|%|倍|元|万元|亿元|万亿元|万亿|公斤|克|焦耳)/i;
 const TERM_RE = /(紊乱|抵抗|反应|机制|受体|致癌物|GDP|CPI|ROI|IARC|板块|流动性|应激|黏膜|摄政|荫封|察举制|做空|冷启动)/i;
 const STRONG_CLAIM_RE = /(一定|必然|绝对|完全|都是|就是不|只要.*就|等同于|等于|彻底|百分之百|永远|从来不会)/;
 const CAUSAL_RE = /(导致|引发|造成|所以|因此|意味着|证明了|说明了)/;
@@ -20,7 +20,7 @@ export function buildCandidateWindows(snapshot: EnvironmentSnapshot): CandidateW
     const ocrText = snapshot.ocrSegments
       .filter((item) => item.endMs >= segment.startMs && item.startMs <= segment.endMs)
       .map((item) => item.text);
-    const combined = `${segment.text} ${ocrText.join(" ")}`;
+    const combined = segment.text;
 
     return {
       id: `candidate_${segment.id}`,
@@ -39,9 +39,7 @@ export function buildCandidateWindows(snapshot: EnvironmentSnapshot): CandidateW
         containsPotentialTerm: TERM_RE.test(combined),
         containsStrongClaim: STRONG_CLAIM_RE.test(combined),
         containsCausalLanguage: CAUSAL_RE.test(combined),
-        containsVisualCue:
-          VISUAL_CUE_RE.test(combined) ||
-          visualContext.some((item) => item.containsSimulation || item.containsScaleVisualization),
+        containsVisualCue: VISUAL_CUE_RE.test(combined),
       },
     };
   });

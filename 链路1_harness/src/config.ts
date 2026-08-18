@@ -12,16 +12,22 @@ export interface Chain1HarnessConfig {
   };
   arbitration: {
     overlapWindowMs: number;
-    minimumPromptIntervalMs: number;
-    maximumPromptsPerMinute: number;
   };
   image: {
     enabled: boolean;
     maxAttempts: number;
-    targetWidth: 310;
-    targetHeight: 180;
-    requestSize: "1K";
+    targetWidth: 930;
+    targetHeight: 540;
+    requestSize: "2K";
     requestRatio: "16:9";
+    hintSticker: {
+      enabled: boolean;
+      maxAttempts: number;
+      targetWidth: 120;
+      targetHeight: 120;
+      requestSize: "2K";
+      requestRatio: "1:1";
+    };
   };
   traceDirectory: string;
   assetDirectory: string;
@@ -30,9 +36,9 @@ export interface Chain1HarnessConfig {
 export const DEFAULT_CONFIG: Chain1HarnessConfig = {
   versions: {
     routeClassifier: "route-classifier-v1",
-    abstractToIntuitive: "abstract-to-intuitive-v13",
-    knowledgeGap: "knowledge-gap-v1",
-    claimVerification: "claim-verification-v6",
+    abstractToIntuitive: "abstract-to-intuitive-v16",
+    knowledgeGap: "knowledge-gap-v2",
+    claimVerification: "claim-verification-v8",
   },
   route: {
     minimumConfidence: 0.62,
@@ -41,16 +47,22 @@ export const DEFAULT_CONFIG: Chain1HarnessConfig = {
   },
   arbitration: {
     overlapWindowMs: 4000,
-    minimumPromptIntervalMs: 15000,
-    maximumPromptsPerMinute: 2,
   },
   image: {
     enabled: true,
     maxAttempts: 3,
-    targetWidth: 310,
-    targetHeight: 180,
-    requestSize: "1K",
+    targetWidth: 930,
+    targetHeight: 540,
+    requestSize: "2K",
     requestRatio: "16:9",
+    hintSticker: {
+      enabled: true,
+      maxAttempts: 2,
+      targetWidth: 120,
+      targetHeight: 120,
+      requestSize: "2K",
+      requestRatio: "1:1",
+    },
   },
   traceDirectory: process.env.CHAIN1_TRACE_DIR ?? ".harness/traces",
   assetDirectory: process.env.CHAIN1_ASSET_DIR ?? "public/generated/chain1-cards",

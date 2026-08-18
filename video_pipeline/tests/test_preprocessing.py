@@ -17,8 +17,12 @@ from video_pipeline import (
     validate_environment,
 )
 from video_pipeline.preprocessing import (
+    FallbackTimedTranscriber,
+    PreprocessingError,
     _budget_chunk_keyframes,
     _detect_ocr_engine,
+    _needs_abstract_visual_check,
+    _normalize_funasr_result,
     _normalize_asr_segments,
 )
 from video_pipeline.preprocessing import to_simplified_chinese
@@ -61,6 +65,63 @@ class SharedPreprocessingTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in segments], ["asr-0001", "asr-0002"])
         self.assertEqual(segments[0]["endMs"], 1500)
 
+    def test_funasr_sentence_timestamps_are_kept_in_milliseconds(self) -> None:
+        segments = _normalize_funasr_result(
+            {
+                "sentence_info": [
+                    {
+                        "start": 620,
+                        "end": 3180,
+                        "text": "冰水并不会伤胃。",
+                        "timestamp": [[620, 860], [860, 1080]],
+                    },
+                    {"start": 3450, "end": 6120, "sentence": "胃更喜欢接近体温的水。"},
+                ]
+            },
+            max_seconds=8,
+            max_chars=50,
+        )
+        self.assertEqual(
+            segments,
+            [
+                {
+                    "id": "asr-0001",
+                    "startMs": 620,
+                    "endMs": 3180,
+                    "text": "冰水并不会伤胃。",
+                },
+                {
+                    "id": "asr-0002",
+                    "startMs": 3450,
+                    "endMs": 6120,
+                    "text": "胃更喜欢接近体温的水。",
+                },
+            ],
+        )
+
+    def test_funasr_raw_tokens_fall_back_to_native_token_timestamps(self) -> None:
+        segments = _normalize_funasr_result(
+            {
+                "raw_text": "长 辈 灌 输 的",
+                "timestamp": [[0, 200], [200, 400], [400, 600], [600, 800], [800, 1000]],
+            },
+            max_seconds=8,
+            max_chars=50,
+        )
+        self.assertEqual(segments[0]["text"], "长辈灌输的")
+        self.assertEqual((segments[0]["startMs"], segments[0]["endMs"]), (0, 1000))
+
+    def test_asr_fallback_is_explicit_in_diagnostics(self) -> None:
+        class FailingTranscriber:
+            def transcribe(self, _audio_path: Path):
+                raise PreprocessingError("primary unavailable")
+
+        transcriber = FallbackTimedTranscriber(FailingTranscriber(), FakeTranscriber())
+        segments, diagnostics = transcriber.transcribe(Path("audio.wav"))
+        self.assertEqual(len(segments), 2)
+        self.assertTrue(diagnostics["fallbackUsed"])
+        self.assertEqual(diagnostics["fallbackReason"], "primary unavailable")
+
     def test_known_video_durations_create_expected_chunks(self) -> None:
         short = build_analysis_chunks(duration_seconds=138.025, chunk_seconds=240, overlap_seconds=12)
         long = build_analysis_chunks(duration_seconds=732.330, chunk_seconds=240, overlap_seconds=12)
@@ -80,23 +141,30 @@ class SharedPreprocessingTests(unittest.TestCase):
         )
         self.assertEqual(segments[0]["asrSegmentIds"], ["asr-1"])
 
-    def test_ocr_schedule_has_guard_frames_and_chunk_budget(self) -> None:
+    def test_ocr_schedule_only_samples_abstract_quantity_segments(self) -> None:
         chunks = build_analysis_chunks(duration_seconds=732.33, chunk_seconds=240, overlap_seconds=12)
         timestamps = select_ocr_timestamps_by_chunk(
             semantic_segments=[
                 {"startMs": 10000, "endMs": 20000, "text": "65℃是什么概念"},
                 {"startMs": 500000, "endMs": 510000, "text": "成瘾一定都能戒掉吗"},
+                {"startMs": 600000, "endMs": 610000, "text": "65℃以上会增加患癌风险"},
             ],
             analysis_chunks=chunks,
-            scene_timestamps=[45.0, 300.0, 600.0],
+            scene_timestamps=[14.0, 45.0, 300.0, 505.0, 600.0],
             periodic_seconds=60,
             frames_per_chunk=8,
         )
-        self.assertIn(15.0, timestamps)
-        self.assertIn(505.0, timestamps)
+        self.assertEqual(timestamps, [12.5, 14.0, 15.0])
         self.assertLessEqual(len(timestamps), len(chunks) * 8)
-        self.assertTrue(any(abs(value - 2.0) < 0.01 for value in timestamps))
-        self.assertTrue(all(abs(a - b) >= 2 for a, b in zip(timestamps, timestamps[1:])))
+        self.assertNotIn(505.0, timestamps)
+        self.assertTrue(all(abs(a - b) >= 1 for a, b in zip(timestamps, timestamps[1:])))
+
+    def test_abstract_visual_candidate_requires_quantity_and_intuitive_reference(self) -> None:
+        self.assertTrue(
+            _needs_abstract_visual_check("35度到40度和人体体温相近，摸起来是温温的热感")
+        )
+        self.assertFalse(_needs_abstract_visual_check("65℃以上会增加患癌风险"))
+        self.assertFalse(_needs_abstract_visual_check("2A类致癌物是什么意思"))
 
     def test_overlap_cannot_expand_chunk_keyframes_past_budget(self) -> None:
         frames = [

@@ -382,6 +382,143 @@ class DoubaoProvider:
         return min(configured, self.timeout_seconds)
 
 
+@dataclass
+class AgnesProvider:
+    api_key: str | None = None
+    endpoint: str | None = None
+    model: str | None = None
+    timeout_seconds: float = 180
+    max_tokens: int = 4096
+    max_retries: int = 2
+    supports_inline_frames: bool = False
+
+    def complete(self, *, system_prompt: str, user_prompt: str, temperature: float) -> str:
+        body = {
+            "model": self._model(),
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": temperature,
+            "max_tokens": self._max_tokens(),
+            "stream": True,
+        }
+        last_error: Exception | None = None
+        for attempt in range(self._max_retries() + 1):
+            try:
+                return self._stream_chat(body)
+            except httpx.HTTPError as exc:
+                last_error = exc
+                if attempt >= self._max_retries():
+                    break
+                time.sleep(2 * (attempt + 1))
+        raise HarnessError(f"Agnes request failed: {last_error}") from last_error
+
+    def complete_with_frames(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        frames: list[VideoFrame],
+        temperature: float,
+    ) -> str:
+        raise HarnessError("Agnes keyframe input requires public image URLs")
+
+    def complete_with_video(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        video_data_url: str,
+        video_fps: float,
+        temperature: float,
+    ) -> str:
+        raise HarnessError("Agnes provider does not upload inline videos in chain2")
+
+    def complete_with_file(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        video_path: Path,
+        temperature: float,
+    ) -> str:
+        raise HarnessError("Agnes provider does not upload video files in chain2")
+
+    def _stream_chat(self, body: dict) -> str:
+        parts: list[str] = []
+        try:
+            with httpx.stream(
+                "POST",
+                self._endpoint(),
+                headers={
+                    "Authorization": f"Bearer {self._api_key()}",
+                    "Content-Type": "application/json",
+                    "Connection": "close",
+                },
+                json=body,
+                timeout=self._timeout(),
+            ) as response:
+                if response.status_code >= 400:
+                    response.read()
+                    raise HarnessError(
+                        f"Agnes HTTP {response.status_code}: {response.text[:500]}"
+                    )
+                for line in response.iter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if payload == "[DONE]":
+                        break
+                    try:
+                        event = json.loads(payload)
+                    except json.JSONDecodeError as exc:
+                        raise HarnessError("Agnes stream event is not valid JSON") from exc
+                    choices = event.get("choices") or []
+                    if not choices:
+                        continue
+                    content = (choices[0].get("delta") or {}).get("content")
+                    if isinstance(content, str):
+                        parts.append(content)
+        except HarnessError:
+            raise
+        except httpx.HTTPError:
+            raise
+        if not parts or not "".join(parts).strip():
+            raise HarnessError("Agnes response content is empty")
+        return "".join(parts)
+
+    def _api_key(self) -> str:
+        _load_dotenv_once()
+        value = self.api_key or os.getenv("AGNES_API_KEY", "")
+        if not value:
+            raise HarnessError("AGNES_API_KEY is required for the agnes provider")
+        return value
+
+    def _endpoint(self) -> str:
+        _load_dotenv_once()
+        return self.endpoint or os.getenv(
+            "AGNES_CHAT_ENDPOINT",
+            "https://apihub.agnes-ai.com/v1/chat/completions",
+        )
+
+    def _model(self) -> str:
+        _load_dotenv_once()
+        return self.model or os.getenv("AGNES_CHAT_MODEL", "agnes-2.0-flash")
+
+    def _timeout(self) -> float:
+        _load_dotenv_once()
+        return float(os.getenv("AGNES_CHAT_TIMEOUT_SECONDS", str(self.timeout_seconds)))
+
+    def _max_tokens(self) -> int:
+        _load_dotenv_once()
+        return int(os.getenv("AGNES_CHAT_MAX_TOKENS", str(self.max_tokens)))
+
+    def _max_retries(self) -> int:
+        _load_dotenv_once()
+        return max(0, int(os.getenv("AGNES_CHAT_MAX_RETRIES", str(self.max_retries))))
+
+
 def _is_response_format_unsupported(body_text: str) -> bool:
     return "response_format" in body_text and (
         "not supported" in body_text
@@ -618,6 +755,16 @@ class MockProvider:
         if "质量评审模型" in user_prompt or "质量审核模型" in user_prompt:
             candidate_groups = _candidate_groups_from_audit_prompt(user_prompt)
             if candidate_groups:
+                if "候选组批量审核输入：" in user_prompt:
+                    return json.dumps(
+                        {
+                            "group_audits": [
+                                _mock_candidate_group_audit(group)
+                                for group in candidate_groups
+                            ]
+                        },
+                        ensure_ascii=False,
+                    )
                 return json.dumps(_mock_candidate_group_audit(candidate_groups[0]), ensure_ascii=False)
             return json.dumps(
                 {
@@ -692,6 +839,8 @@ class MockProvider:
 def provider_from_name(name: str) -> LLMProvider:
     if name == "doubao":
         return DoubaoProvider()
+    if name == "agnes":
+        return AgnesProvider()
     if name == "mock":
         return MockProvider()
     raise HarnessError(f"Unknown provider: {name}")
@@ -720,16 +869,16 @@ _MOCK_KNOWLEDGE_POINT_TEMPLATES = [
 ]
 
 _MOCK_CARD_TEMPLATES = [
-    ("为什么甜饮也升尿酸？", "会，果糖代谢可能推高尿酸，咋一步步变高的？看视频。", "想知道果糖怎么影响尿酸？"),
-    ("年轻人就不会痛风吗？", "不是，年轻人也会被习惯影响，为啥偏年轻？视频里有数据。", "看看年轻人为什么也会痛风"),
-    ("睡前刷视频真更难睡吗？", "会，强刺激会让大脑更兴奋，怎么拖到睡意？看视频。", "看看睡意怎么被拖走"),
-    ("空腹喝咖啡会更慌吗？", "可能会，咖啡因和胃酸会放大不适，哪步关键？看视频。", "看看空腹咖啡怎么影响身体"),
-    ("饭后立刻躺会反酸吗？", "会，平躺更容易让胃内容物上返，具体过程看视频。", "看看反酸是怎么来的"),
-    ("久坐也会让腿更肿吗？", "会，静脉回流变慢会让液体滞留，怎么发生的？看视频。", "看看久坐为什么会肿"),
-    ("熬夜后为啥更想吃甜？", "会，激素节律被打乱会推高食欲，为啥想吃甜？看视频。", "看看熬夜怎么影响食欲"),
-    ("喝水少真的会头疼吗？", "可能会，缺水会让循环和神经更敏感，哪些信号看视频。", "看看缺水会带来哪些信号"),
-    ("运动后为啥不能猛停？", "不建议，猛停会让回流短暂跟不上，身体咋反应？看视频。", "看看运动后该怎么停"),
-    ("压力大会让胃更难受吗？", "会，压力会牵动胃肠神经调节，为啥会放大？看视频。", "看看压力怎么影响胃"),
+    ("为什么甜饮也升尿酸？", "会。果糖代谢可能促进尿酸生成，长期大量摄入含糖饮料更容易使尿酸升高。", ""),
+    ("年轻人就不会痛风吗？", "不是。年龄不是唯一因素，长期高糖饮食等习惯也会增加年轻人的痛风风险。", ""),
+    ("睡前刷视频真更难睡吗？", "会。短视频的强刺激会让大脑维持兴奋状态，从而推迟睡意和入睡时间。", ""),
+    ("空腹喝咖啡会更慌吗？", "可能会。咖啡因会提高兴奋度，空腹时胃酸刺激也更明显，因此心慌或胃部不适可能加重。", ""),
+    ("饭后立刻躺会反酸吗？", "会。平躺会减弱重力对胃内容物的约束，使胃内容物更容易反流到食管。", ""),
+    ("久坐也会让腿更肿吗？", "会。久坐会减弱腿部肌肉泵作用，使静脉回流变慢，液体更容易在下肢滞留。", ""),
+    ("熬夜后为啥更想吃甜？", "熬夜会扰乱饥饿和饱腹相关激素，使食欲上升，也更容易偏好高糖高热量食物。", ""),
+    ("喝水少真的会头疼吗？", "可能会。缺水会影响循环状态，并让神经系统对不适更敏感，从而诱发轻度头痛。", ""),
+    ("运动后为啥不能猛停？", "剧烈运动后突然停止会让肌肉泵迅速停下，静脉回流短暂不足，可能引起头晕等不适。", ""),
+    ("压力大会让胃更难受吗？", "会。压力会影响自主神经和胃肠活动，使胃酸、蠕动及疼痛敏感度发生变化，从而放大不适。", ""),
 ]
 
 
@@ -771,7 +920,7 @@ def _mock_knowledge_points(count: int) -> list[dict]:
                 },
                 "question_direction": _MOCK_CARD_TEMPLATES[index % len(_MOCK_CARD_TEMPLATES)][0],
                 "answer_core": _MOCK_CARD_TEMPLATES[index % len(_MOCK_CARD_TEMPLATES)][1],
-                "answer_hook": _MOCK_CARD_TEMPLATES[index % len(_MOCK_CARD_TEMPLATES)][2],
+                "answer_hook": "",
                 "timestamp_note": f"从“{timestamp_subject}”开始正式讲解，前面只是铺垫话题。",
             }
         )
@@ -781,7 +930,7 @@ def _mock_knowledge_points(count: int) -> list[dict]:
 def _mock_cards(knowledge_points: list[dict], *, video_id: str) -> list[dict]:
     cards = []
     for index, point in enumerate(knowledge_points):
-        hook, answer, entry = _MOCK_CARD_TEMPLATES[index % len(_MOCK_CARD_TEMPLATES)]
+        hook, answer, _ = _MOCK_CARD_TEMPLATES[index % len(_MOCK_CARD_TEMPLATES)]
         start_time = float(point.get("start_time") or 10 + index * 30)
         end_time = float(point.get("end_time") or start_time + 20)
         task_type = str(point.get("task_type") or "原因解释型")
@@ -795,8 +944,8 @@ def _mock_cards(knowledge_points: list[dict], *, video_id: str) -> list[dict]:
                 "highlight_answer": answer,
                 "source_start_time": start_time,
                 "source_end_time": end_time,
-                "video_entry_text": entry,
-                "video_cta_text": f"看原视频 {int(end_time - start_time)} 秒解释",
+                "video_entry_text": "知识点来源",
+                "video_cta_text": "对应时间段",
                 "theme": "health",
                 "difficulty_level": "easy",
                 "risk_level": "medium",
@@ -821,9 +970,7 @@ def _mock_candidate_groups(knowledge_points: list[dict], *, video_id: str) -> li
                 str(card["hook_question"]),
                 candidate_index,
             )
-            candidate["video_entry_text"] = (
-                f"{card['video_entry_text']}，角度 {candidate_index}"
-            )
+            candidate["video_entry_text"] = str(card["video_entry_text"])
             candidates.append(candidate)
         groups.append(
             {
@@ -850,6 +997,23 @@ def _mock_candidate_hook(hook: str, candidate_index: int) -> str:
 
 
 def _candidate_groups_from_audit_prompt(user_prompt: str) -> list[dict]:
+    batch_marker = "候选组批量审核输入：\n"
+    batch_start = user_prompt.find(batch_marker)
+    if batch_start >= 0:
+        remainder = user_prompt[batch_start + len(batch_marker) :]
+        end = remainder.find("\n\n必须只输出与输入顺序一致的 JSON")
+        raw = remainder[:end] if end >= 0 else remainder
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(parsed, list):
+            return []
+        return [
+            item["candidate_group"]
+            for item in parsed
+            if isinstance(item, dict) and isinstance(item.get("candidate_group"), dict)
+        ]
     marker = "三候选：\n"
     start = user_prompt.find(marker)
     if start < 0:

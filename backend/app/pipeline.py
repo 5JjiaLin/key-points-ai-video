@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-import json
 import os
-import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-for source_root in [REPO_ROOT / "video_pipeline" / "src", REPO_ROOT / "链路2_harness" / "src"]:
+for source_root in [
+    REPO_ROOT / "video_analysis_harness" / "src",
+    REPO_ROOT / "video_pipeline" / "src",
+    REPO_ROOT / "链路2_harness" / "src",
+]:
     if str(source_root) not in sys.path:
         sys.path.insert(0, str(source_root))
 
-from huazhongdian_harness.environment_analysis import analyze_environment
-from huazhongdian_harness.providers import provider_from_name
-from video_pipeline import PreprocessingConfig, VideoSource, preprocess_video
+from video_analysis_harness import VideoAnalysisRequest
+from video_analysis_harness.runtime import create_default_harness
 
+from .playback import prepare_playback_media
 from .store import JobStore
 
 
@@ -34,82 +35,53 @@ def load_local_env() -> None:
 
 def process_job(store: JobStore, job_id: str, source_path: Path) -> None:
     job_dir = store.job_dir(job_id)
-    fallbacks: list[str] = []
-    errors: dict[str, str] = {}
     try:
         load_local_env()
-        original_name = store.read_status(job_id).get("originalName") or source_path.stem
+        job_status = store.read_status(job_id)
+        original_name = job_status.get("originalName") or source_path.stem
+        creator = str(job_status.get("creator") or "本地上传")
 
-        def preprocessing_progress(stage: str, value: float) -> None:
+        def harness_progress(stage: str, value: float) -> None:
             store.update(
                 job_id,
                 state=stage,
-                progress=round(value * 0.55, 3),
+                progress=round(value, 3),
                 message=_stage_message(stage),
             )
 
-        preprocessing = preprocess_video(
-            source=VideoSource(video_id=job_id, path=source_path, title=Path(str(original_name)).stem),
-            out_dir=job_dir / "evidence",
-            config=PreprocessingConfig.from_environment(),
-            progress=preprocessing_progress,
+        harness = create_default_harness(
+            repo_root=REPO_ROOT,
+            chain2_provider=os.getenv("CHAIN2_PROVIDER", "doubao"),
         )
-        environment_path = Path(preprocessing["environmentPath"])
-        environment = json.loads(environment_path.read_text(encoding="utf-8"))
+        analysis = harness.run(
+            VideoAnalysisRequest(
+                video_id=job_id,
+                source_path=source_path,
+                title=Path(str(original_name)).stem,
+                creator=creator,
+            ),
+            run_dir=job_dir,
+            progress=harness_progress,
+        )
 
-        store.update(job_id, state="chain1", progress=0.58, message="正在并行分析理解补充与知识点")
-        with ThreadPoolExecutor(max_workers=2, thread_name_prefix=f"video-{job_id}") as executor:
-            chain1_future = executor.submit(_run_chain1, job_dir, environment_path)
-            chain2_future = executor.submit(
-                analyze_environment,
-                environment_path=environment_path,
-                out_dir=job_dir / "chain2",
-                provider=provider_from_name("doubao"),
-                progress=lambda _stage, value: store.update(
-                    job_id,
-                    state="chain2",
-                    progress=round(0.58 + value * 0.36, 3),
-                    message="正在并行分析理解补充与知识点",
-                ),
-            )
-            try:
-                chain1 = chain1_future.result()
-                if chain1.get("status") == "failed":
-                    fallbacks.append("chain1_failed")
-                elif chain1.get("status") == "ready_with_fallbacks":
-                    fallbacks.append("chain1_partial_fallback")
-            except Exception as exc:
-                errors["chain1"] = str(exc)
-                fallbacks.append("chain1_failed")
-                chain1 = {"videoId": job_id, "status": "failed", "supplements": []}
-            try:
-                chain2 = chain2_future.result()
-                if chain2.get("status") == "ready_with_fallbacks":
-                    fallbacks.append("chain2_partial_fallback")
-            except Exception as exc:
-                errors["chain2"] = str(exc)
-                fallbacks.append("chain2_deterministic_fallback")
-                chain2 = _fallback_chain2(environment)
-
-        store.update(job_id, state="finalizing", progress=0.96, message="正在生成播放时间轴")
+        playback_path = prepare_playback_media(source_path)
         result = build_video_project_dto(
             job_id=job_id,
-            environment=environment,
-            chain1=chain1,
-            chain2=chain2,
-            source_path=source_path,
-            fallbacks=fallbacks,
-            errors=errors,
+            environment=analysis.environment,
+            chain1=analysis.understanding_supplements,
+            chain2=analysis.knowledge_navigation,
+            source_path=playback_path,
+            fallbacks=analysis.fallbacks,
+            errors=analysis.errors,
         )
         store.write_result(job_id, result)
-        state = "ready_with_fallbacks" if fallbacks else "ready"
         store.update(
             job_id,
-            state=state,
+            state=analysis.status,
             progress=1.0,
             message="视频解析完成",
             retryable=False,
-            fallbacks=fallbacks,
+            fallbacks=analysis.fallbacks,
         )
     except Exception as exc:
         store.update(
@@ -151,10 +123,31 @@ def build_video_project_dto(
         )
     supplements = []
     for item in chain1.get("supplements") or []:
+        if item.get("displayMode") != "auto_prompt":
+            continue
         adapted = dict(item)
-        if adapted.get("cardImageUrl"):
-            filename = Path(adapted["cardImageUrl"]).name
-            adapted["cardImageUrl"] = f"/api/media/{job_id}/media/cards/{filename}"
+        if adapted.get("type") == "claim_verification":
+            has_columns = bool(adapted.get("leftColumn") and adapted.get("rightColumn"))
+            requested_variant = adapted.get("cardVariant")
+            is_clarification = has_columns and requested_variant in {None, "viewpoint_clarification"}
+            adapted["cardVariant"] = "viewpoint_clarification" if is_clarification else "verification_result"
+            adapted["subtitle"] = adapted.get("subtitle") or (
+                "换个角度看看这句话" if is_clarification else "查看核验结果"
+            )
+            adapted["sourceCount"] = max(0, int(adapted.get("sourceCount") or 0))
+            if adapted["sourceCount"] <= 0:
+                adapted.pop("sourceAction", None)
+            else:
+                adapted["sourceAction"] = adapted.get("sourceAction") or "查看依据"
+            adapted["renderMode"] = "verification_template"
+            adapted.pop("cardImageUrl", None)
+            if not is_clarification:
+                adapted.pop("leftColumn", None)
+                adapted.pop("rightColumn", None)
+        for image_key in ("cardImageUrl", "hintStickerImageUrl"):
+            if adapted.get(image_key):
+                filename = Path(adapted[image_key]).name
+                adapted[image_key] = f"/api/media/{job_id}/media/cards/{filename}"
         adapted["evidenceSegmentIds"] = [
             segment["id"]
             for segment in environment["semanticSegments"]
@@ -179,60 +172,13 @@ def build_video_project_dto(
         },
     }
 
-
-def _run_chain1(job_dir: Path, environment_path: Path) -> dict[str, Any]:
-    chain1_dir = REPO_ROOT / "链路1_harness"
-    entrypoint = chain1_dir / "dist" / "run-environment.js"
-    if not entrypoint.is_file():
-        raise RuntimeError("chain1 is not built; run npm run build in 链路1_harness")
-    output = job_dir / "chain1" / "result.json"
-    output.parent.mkdir(parents=True, exist_ok=True)
-    environment = dict(os.environ)
-    environment["CHAIN1_TRACE_DIR"] = str(job_dir / "chain1" / "traces")
-    environment["CHAIN1_ASSET_DIR"] = str(job_dir / "media" / "cards")
-    result = subprocess.run(
-        ["node", str(entrypoint), str(environment_path), str(output)],
-        cwd=chain1_dir,
-        env=environment,
-        capture_output=True,
-        text=True,
-        timeout=1800,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"chain1 failed: {(result.stderr or result.stdout)[-500:]}")
-    return json.loads(output.read_text(encoding="utf-8"))
-
-
-def _fallback_chain2(environment: dict[str, Any]) -> dict[str, Any]:
-    points: list[dict[str, Any]] = []
-    segments = environment["semanticSegments"]
-    for index in range(0, len(segments), 2):
-        group = segments[index:index + 2]
-        if not group:
-            continue
-        text = "".join(item["text"] for item in group).strip()
-        point_id = f"fallback-kp-{len(points) + 1:03d}"
-        points.append({
-            "id": point_id,
-            "statement": text,
-            "question": "这段内容的关键结论是什么？",
-            "answer": text[:80],
-            "startMs": group[0]["startMs"],
-            "endMs": group[-1]["endMs"],
-            "taskType": "待模型复核",
-            "evidenceSegmentIds": [item["id"] for item in group],
-        })
-    return {
-        "videoId": environment["video"]["id"],
-        "status": "ready_with_fallbacks",
-        "knowledgePoints": points,
-    }
-
-
 def _stage_message(stage: str) -> str:
     return {
         "probing": "正在检查视频",
         "transcribing": "正在提取带时间戳文案",
         "indexing": "正在建立语义时间轴",
         "ocr": "正在读取疑似区间的画面文字",
+        "chain1": "正在并行分析理解补充与知识点",
+        "chain2": "正在并行分析理解补充与知识点",
+        "finalizing": "正在生成播放时间轴",
     }.get(stage, "正在解析视频")

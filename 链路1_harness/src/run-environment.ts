@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { ArkJsonInvoker, loadArkInvokerConfig } from "./ark.js";
 import { DEFAULT_CONFIG } from "./config.js";
 import { loadVideoEnvironmentFile } from "./environment-file.js";
-import { AgnesFullCardImageTool, DisabledImageTool } from "./image/tool.js";
+import { DisabledImageTool, WanChain1ImageTool } from "./image/tool.js";
 import { LocalCardAssetStore } from "./image/asset-store.js";
 import { Chain1Harness } from "./orchestrator.js";
 import { PromptRouteClassifier } from "./router.js";
@@ -30,6 +30,7 @@ async function main(): Promise<void> {
     throw new Error("Usage: run-environment <video_environment.v1.json> <output.json>");
   }
   loadEnv(resolve(".env"));
+  loadEnv(resolve("..", ".env"));
   loadEnv(resolve("..", "链路2_harness", ".env"));
   const input = loadVideoEnvironmentFile(environmentArg);
   const baseArkConfig = loadArkInvokerConfig();
@@ -58,13 +59,32 @@ async function main(): Promise<void> {
       "claim-verification",
     ),
   };
-  const imageEnabled = Boolean(process.env.AGNES_API_KEY?.trim());
+  const imageEnabled = Boolean(process.env.DASHSCOPE_API_KEY?.trim());
   const config = {
     ...DEFAULT_CONFIG,
-    image: { ...DEFAULT_CONFIG.image, enabled: imageEnabled },
+    route: {
+      ...DEFAULT_CONFIG.route,
+      allowSecondaryRoute: process.env.CHAIN1_ALLOW_SECONDARY_ROUTE?.trim() !== "false",
+    },
+    image: {
+      ...DEFAULT_CONFIG.image,
+      enabled: imageEnabled,
+      maxAttempts: positiveInteger(
+        process.env.CHAIN1_IMAGE_MAX_ATTEMPTS,
+        DEFAULT_CONFIG.image.maxAttempts,
+      ),
+      hintSticker: {
+        ...DEFAULT_CONFIG.image.hintSticker,
+        enabled: process.env.CHAIN1_HINT_STICKER_ENABLED?.trim() !== "false",
+        maxAttempts: positiveInteger(
+          process.env.CHAIN1_HINT_STICKER_MAX_ATTEMPTS,
+          DEFAULT_CONFIG.image.hintSticker.maxAttempts,
+        ),
+      },
+    },
   };
   const imageTool = imageEnabled
-    ? new AgnesFullCardImageTool(config, new LocalCardAssetStore(config.assetDirectory))
+    ? new WanChain1ImageTool(config, new LocalCardAssetStore(config.assetDirectory))
     : new DisabledImageTool();
   const harness = new Chain1Harness({
     config,
@@ -75,6 +95,11 @@ async function main(): Promise<void> {
   });
   const result = await harness.run(input);
   writeFileSync(resolve(outputArg), JSON.stringify(result, null, 2) + "\n", "utf8");
+}
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 main().catch((error) => {

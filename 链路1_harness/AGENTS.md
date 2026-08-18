@@ -190,7 +190,7 @@
 
 ```text
 问题：冰水就是不健康的吗？
-辅助文案：换个角度看看这句话
+辅助文案：换个角度看
 详情：需要结合人群、饮用量、饮用速度和身体状态判断。
 ```
 
@@ -983,7 +983,7 @@ Chain2HarnessAdapter
     sourceText: '冰水就是不健康的',
     triggerTime: 18,
     question: '冰水就是不健康的吗？',
-    helperText: '换个角度看看这句话',
+    helperText: '换个角度看',
     shortAnswer: '需要结合人群、饮用量、饮用速度和身体状态判断。'
   },
   {
@@ -1626,22 +1626,22 @@ Harness 已明确由：
 
 ---
 
-# 29. Agnes Image 2.1 Flash 配置
+# 29. 万相 2.7 Image Pro 配置
 
 链路1需要视觉资源时，默认生图模型配置为：
 
 ```text
-Provider: Agnes / Sapiens AI
-Model: agnes-image-2.1-flash
-Endpoint: POST https://apihub.agnes-ai.com/v1/images/generations
+Provider: 阿里云百炼 / 万相
+Model: wan2.7-image-pro
+Endpoint: POST https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
 ```
 
 ## 29.1 安全规则
 
-- API Key 只能存在于服务端环境变量 `AGNES_API_KEY`；
+- API Key 只能存在于服务端环境变量 `DASHSCOPE_API_KEY`；
 - 禁止写入仓库、前端代码、Fixture、Trace、日志和错误响应；
 - 禁止使用 `VITE_*`、`NEXT_PUBLIC_*` 等会进入浏览器的变量；
-- H5 不得直接请求 Agnes API；
+- H5 不得直接请求百炼生图 API；
 - 服务端必须提供受控的 Harness Tool 或内部接口；
 - 已在聊天、Issue、提交记录中暴露的 Key 必须撤销并重新生成。
 
@@ -1652,7 +1652,7 @@ Skill输出问题、答案、视觉语义计划和生图Prompt
 → Adapter统一格式
 → Arbiter确认保留
 → Content Grader通过
-→ Agnes Image Tool
+→ Wan 2.7 Image Tool
 → Visual Grader
 → 素材持久化
 → 写入最终视频时间轴
@@ -1667,17 +1667,19 @@ Skill输出问题、答案、视觉语义计划和生图Prompt
 ```text
 抽象变直观
 → Skill生成问题、答案、视觉结构和完整卡片生图Prompt
-→ Agnes直接生成包含少量中文文字的完整卡片图片
+→ 万相2.7直接生成包含少量中文文字的完整卡片图片
 
 知识断层
 → Skill生成问题、答案、视觉语义和完整卡片生图Prompt
-→ Agnes直接生成包含少量中文文字的完整卡片图片
+→ 万相2.7直接生成包含少量中文文字的完整卡片图片
 
 验证真假
 → Skill生成问题、答案、核验状态、条件和证据摘要
-→ 不调用生图模型
+→ 展开详情不调用生图模型
 → 前端填入固定验证卡组件
 ```
+
+三类内容只要进入 `auto_prompt`，都可以由 Harness 额外生成一张独立的轻提示贴图。轻提示贴图与展开详情的渲染策略互不替代：验证真假仍然不生成完整详情卡图片。
 
 不要把前两类改成“只生成贴纸，再由代码填文字”。前两类 Skill 已经严格限制图片中的文字数量和卡片结构，当前产品决策是直接生出完整卡片。
 
@@ -1695,14 +1697,14 @@ Skill输出问题、答案、视觉语义计划和生图Prompt
 
 ```text
 full-card:
-  size: 1K
+  size: 2K
   ratio: 16:9
   routes:
     - abstract_to_intuitive
     - knowledge_gap
 ```
 
-Agnes 不原生支持 `31:18`，因此以 `1K + 16:9` 生成完整卡片，再由服务端居中裁切和缩放至 `310×180`。Prompt 必须把重要问题、答案和视觉主体放在中心安全区。
+万相完整卡使用 2K 的 `2560×1440` 生成，再由服务端居中裁切和缩放至 `930×540` 的 3 倍屏资源；H5 展示尺寸仍为 `310×180` CSS px。Prompt 必须把重要问题、答案和视觉主体放在中心安全区。
 
 `claim_verification` 必须强制：
 
@@ -1710,51 +1712,70 @@ Agnes 不原生支持 `31:18`，因此以 `1K + 16:9` 生成完整卡片，再�
 visual.required = false
 ```
 
+这里的 `visual.required` 只约束展开详情的完整卡片，不禁止 Harness 生成轻提示贴图。
+
+轻提示左侧区域只定义贴图位置和展示尺寸，不绘制灰色底或其他占位背景。轻提示贴图统一使用：
+
+```text
+hint-sticker:
+  size: 2K
+  ratio: 1:1
+  target: 120×120 PNG
+  display: 40×40 CSS px
+  routes:
+    - abstract_to_intuitive
+    - knowledge_gap
+    - claim_verification
+```
+
+轻提示贴图风格遵循“统一卡通贴纸风提示词生成器”规范：精致 Sticker Illustration、扁平 2.5D、内部深色粗描边、外部完整连续的粗白色模切边框、柔和渐变、少量高光、轻微阴影和 Emoji 式轻拟物质感。配色明快但不过度饱和；单个完整主体居中，占画面约 70%～80%，四周均匀留白且不得裁切；透明背景优先，无法透明时使用与主体边缘分离的纯白背景，再由服务端只清除与画布四边连通的近白背景，保留主体白色模切边框。必须禁止文字、数字、水印、品牌标志、界面元素、复杂场景、写实摄影、复杂 3D、黏土、毛绒、多个分散主体、结构错误和拟人化五官。
+
+三类语义都要收敛为一个紧凑主体：验证真假将主题对象和放大镜/核验动作融合为一个主体；抽象变直观使用一个物体或刻度隐喻；知识断层使用一个具体物体或结构隐喻。生成失败时该位置保持透明，不得显示灰色底，也不得阻塞轻提示或整条视频进入可播放状态。
+
 ## 29.4 请求规则
 
 文生图必须包含：
 
 ```text
 model
-prompt
-size
+input.messages
+parameters.size
 ```
 
-需要 URL 返回时：
+完整卡的 2K 16:9 请求参数：
 
 ```json
 {
-  "extra_body": {
-    "response_format": "url"
-  }
+  "size": "2560*1440",
+  "n": 1,
+  "watermark": false,
+  "thinking_mode": true
 }
 ```
 
-图生图输入按当前接口示例放入：
+轻提示贴图的 2K 方图请求参数：
 
 ```json
 {
-  "extra_body": {
-    "image": ["https://...或data:image/..."],
-    "response_format": "url"
-  }
+  "size": "2048*2048",
+  "n": 1,
+  "watermark": false,
+  "thinking_mode": true
 }
 ```
 
-不要：
-
-- 在顶层放 `response_format`；
-- 传递 `tags: ["img2img"]`；
-- 假定返回 URL 永久有效。
+不要假定返回 URL 永久有效；拿到 URL 后必须立即持久化。
 
 ## 29.5 运行配置
 
 ```env
-AGNES_API_KEY=
-AGNES_IMAGE_ENDPOINT=https://apihub.agnes-ai.com/v1/images/generations
-AGNES_IMAGE_MODEL=agnes-image-2.1-flash
-AGNES_IMAGE_TIMEOUT_MS=180000
-AGNES_IMAGE_MAX_RETRIES=2
+DASHSCOPE_API_KEY=
+DASHSCOPE_IMAGE_ENDPOINT=https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+DASHSCOPE_IMAGE_MODEL=wan2.7-image-pro
+DASHSCOPE_IMAGE_TIMEOUT_MS=180000
+DASHSCOPE_IMAGE_MAX_RETRIES=2
+CHAIN1_HINT_STICKER_ENABLED=true
+CHAIN1_HINT_STICKER_MAX_ATTEMPTS=1
 ```
 
 API 返回 URL 后必须立即持久化到项目自己的对象存储或 Demo 资源目录。
@@ -1775,4 +1796,4 @@ API 返回 URL 后必须立即持久化到项目自己的对象存储或 Demo �
 → 使用模板插图或无图卡片
 ```
 
-不得因为生图失败阻塞整条视频进入 `ready`。抽象变直观和知识断层可以降级为文字详情；验证真假本身始终使用结构化模板，不受生图失败影响。
+不得因为生图失败阻塞整条视频进入 `ready`。抽象变直观和知识断层可以降级为文字详情；验证真假本身始终使用结构化详情模板。轻提示贴图失败时保留灰色占位并记录 fallback。
