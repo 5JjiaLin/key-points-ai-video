@@ -31,14 +31,22 @@ h5/vite.config.d.ts
 # Harness and pipeline runtime output
 **/.harness/
 **/runs/
+**/.runtime/
 链路1_harness/public/generated/chain1-cards/
 backend_data/
 
 # Large local test inputs
 测试视频/
 测试结果/
+生成卡片预览/
 
 # Local editor state and packaged archives
 **/.vscode/
 **/.idea/
+**/.kiro/
 *.zip
+
+# Local-only handoff and duplicate delivery material
+新窗口续接说明.md
+/huazhongdian-video-harness/
+/scripts/

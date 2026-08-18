@@ -1,0 +1,4 @@
+interface:
+  display_name: "划重点视频理解 Harness"
+  short_description: "统一调用链路1、2、3的视频理解及多视频知识重构能力"
+  default_prompt: "Use $huazhongdian-video-harness to analyze videos and build a traceable multi-video learning path."
