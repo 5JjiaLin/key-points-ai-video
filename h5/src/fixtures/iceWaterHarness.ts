@@ -1,0 +1,112 @@
+import type {
+  Chain1HarnessOutput,
+  Chain2KnowledgePointOutput,
+} from '../domain/video'
+import { buildVideoProject } from '../services/harnessAdapters'
+
+const chain1: Chain1HarnessOutput = {
+  videoId: 'ice-water-demo',
+  status: 'ready_with_fallbacks',
+  supplements: [
+    {
+      id: 'candidate_seg-1_claim-verification',
+      type: 'claim_verification',
+      sourceText: '冰水就是不健康的',
+      startMs: 12000,
+      endMs: 17000,
+      triggerAtMs: 17500,
+      displayMode: 'auto_prompt',
+      question: '冰水一定都不健康吗？',
+      answer: '不能一概而论，需要结合人群、饮用量和身体状态判断。',
+      answerLabel: '表达过于绝对',
+      renderMode: 'verification_template',
+    },
+    {
+      id: 'candidate_seg-2_abstract-0',
+      type: 'abstract_to_intuitive',
+      sourceText: '长期饮用65℃以上的热饮更值得注意',
+      startMs: 31000,
+      endMs: 35600,
+      triggerAtMs: 36100,
+      displayMode: 'auto_prompt',
+      question: '65℃有多烫？',
+      answer: '已经明显烫口，不再只是温热。',
+      subtitle: '和日常热饮对比一下',
+      renderMode: 'full_generated_image',
+      cardImageUrl: '/assets/supplement-card-source.png',
+      cardWidth: 310,
+      cardHeight: 180,
+    },
+    {
+      id: 'candidate_seg-3_knowledge-gap',
+      type: 'knowledge_gap',
+      sourceText: '低温刺激可能引发胃肠功能紊乱',
+      startMs: 63000,
+      endMs: 67000,
+      triggerAtMs: 67500,
+      displayMode: 'list_only',
+      question: '功能紊乱是什么？',
+      answer: '胃肠工作节奏暂时失调，不等于器官已经损坏。',
+      subtitle: '一句话补懂',
+      renderMode: 'text_fallback',
+    },
+  ],
+}
+
+const chain2Points: Chain2KnowledgePointOutput[] = [
+  {
+    knowledge_point_id: 'kp_001',
+    statement: '多数健康人适量饮用冰水，通常不会造成长期胃损伤',
+    question: '喝冰水真的伤胃吗？',
+    answer: '多数健康人适量饮用冰水，通常不会造成长期胃损伤。',
+    start_time: 10,
+    end_time: 45,
+    task_type: '误区纠正型',
+  },
+  {
+    knowledge_point_id: 'kp_002',
+    statement: '长期反复饮用过烫饮品可能持续刺激食管',
+    question: '高温饮品为什么更值得注意？',
+    answer: '长期反复饮用过烫饮品，可能持续刺激食管。',
+    start_time: 45,
+    end_time: 85,
+    task_type: '原因解释型',
+  },
+  {
+    knowledge_point_id: 'kp_003',
+    statement: '低温刺激可能让胃肠运动节奏暂时变化',
+    question: '喝冰水为什么会短暂不舒服？',
+    answer: '低温刺激可能改变胃肠运动节奏，引起短暂不适。',
+    start_time: 85,
+    end_time: 125,
+    task_type: '过程变化型',
+  },
+  {
+    knowledge_point_id: 'kp_004',
+    statement: '敏感人群需要结合身体状态调整饮用方式',
+    question: '哪些人喝冰水更容易不舒服？',
+    answer: '胃肠敏感或正处于不适状态的人，需要结合自身情况判断。',
+    start_time: 125,
+    end_time: 150,
+    task_type: '条件判断型',
+  },
+  {
+    knowledge_point_id: 'kp_005',
+    statement: '饮用温度、速度和饮用量共同影响实际体感',
+    question: '怎样喝更不容易刺激胃肠？',
+    answer: '控制温度、饮用速度和单次饮用量，比简单区分冷热更重要。',
+    start_time: 150,
+    end_time: 177,
+    task_type: '关系结构型',
+  },
+]
+
+export const iceWaterDemoProject = buildVideoProject({
+  id: 'ice-water-demo',
+  title: '喝冰水伤胃吗？',
+  creator: '医学科普联盟',
+  duration: 177,
+  videoUrl: '/demo/ice-water.mp4',
+  chain1,
+  chain2Points,
+})

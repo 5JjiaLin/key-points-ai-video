@@ -1,0 +1,20 @@
+{
+  "name": "chain1-understanding-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "链路1：抽象变直观、知识断层、验证真假三类 Skill 的可复现 Harness。",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "demo": "npm run build && node dist/demo.js",
+    "validate:environment": "npm run build && node dist/validate-environment.js",
+    "run:environment": "npm run build && node dist/run-environment.js",
+    "check": "npm run build && npm run test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}

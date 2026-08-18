@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Chain1TraceEvent",
+  "type": "object",
+  "required": ["runId", "snapshotId", "timestamp", "step", "status"],
+  "properties": {
+    "runId": { "type": "string" },
+    "snapshotId": { "type": "string" },
+    "candidateId": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "step": { "type": "string" },
+    "status": { "enum": ["started", "completed", "skipped", "failed"] },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "input": {},
+    "output": {},
+    "error": { "type": "string" }
+  }
+}

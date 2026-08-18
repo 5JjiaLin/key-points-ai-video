@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+.env.local
+.harness/
+public/generated/chain1-cards/

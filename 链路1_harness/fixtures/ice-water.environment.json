@@ -1,0 +1,33 @@
+{
+  "videoId": "ice-water-demo",
+  "videoHash": "replace-with-real-sha256",
+  "title": "喝冰水伤胃吗？",
+  "durationMs": 177000,
+  "sourceVideoUrl": "/uploads/ice-water-demo.mp4",
+  "asrSegments": [],
+  "ocrSegments": [],
+  "visualContext": [],
+  "semanticSegments": [
+    {
+      "id": "seg-001",
+      "startMs": 12000,
+      "endMs": 17000,
+      "text": "冰水就是不健康的",
+      "asrSegmentIds": ["asr-001"]
+    },
+    {
+      "id": "seg-002",
+      "startMs": 31000,
+      "endMs": 35600,
+      "text": "长期饮用65℃以上的热饮更值得注意",
+      "asrSegmentIds": ["asr-002"]
+    },
+    {
+      "id": "seg-003",
+      "startMs": 63000,
+      "endMs": 67000,
+      "text": "低温刺激可能引发胃肠功能紊乱",
+      "asrSegmentIds": ["asr-003"]
+    }
+  ]
+}

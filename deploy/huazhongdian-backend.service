@@ -1,0 +1,21 @@
+[Unit]
+Description=Huazhongdian video analysis backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/huazhongdian/app
+EnvironmentFile=/etc/huazhongdian.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/huazhongdian/app/backend:/opt/huazhongdian/app/video_pipeline/src:/opt/huazhongdian/app/链路2_harness/src
+Environment=HF_HOME=/opt/huazhongdian/huggingface
+Environment=HF_HUB_OFFLINE=1
+Environment=BACKEND_DATA_DIR=/var/lib/huazhongdian/jobs
+ExecStart=/opt/huazhongdian/venv/bin/python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

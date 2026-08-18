@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "huazhongdian-video-pipeline"
+version = "0.1.0"
+description = "Shared ASR, OCR and evidence timeline pipeline for Huazhongdian."
+requires-python = ">=3.11"
+dependencies = ["opencc-python-reimplemented>=0.1.7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

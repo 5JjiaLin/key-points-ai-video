@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Chain1HarnessResult",
+  "type": "object",
+  "required": ["runId", "snapshotId", "videoId", "status", "supplements", "suppressed", "tracePath"],
+  "properties": {
+    "runId": { "type": "string" },
+    "snapshotId": { "type": "string" },
+    "videoId": { "type": "string" },
+    "status": { "enum": ["ready", "ready_with_fallbacks", "failed"] },
+    "supplements": { "type": "array" },
+    "suppressed": { "type": "array" },
+    "tracePath": { "type": "string" }
+  }
+}

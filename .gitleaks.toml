@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documentation-only API key placeholder"
+regexTarget = "secret"
+regexes = ['''YOUR_API_KEY''']

@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Secrets and local configuration
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+feishu-wiki-auth*.png
+
+# JavaScript / TypeScript dependencies and build output
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+h5/vite.config.js
+h5/vite.config.d.ts
+
+# Python caches and virtual environments
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.venv/
+**/venv/
+**/*.egg-info/
+
+# Harness and pipeline runtime output
+**/.harness/
+**/runs/
+链路1_harness/public/generated/chain1-cards/
+backend_data/
+
+# Large local test inputs
+测试视频/
+测试结果/
+
+# Local editor state and packaged archives
+**/.vscode/
+**/.idea/
+*.zip

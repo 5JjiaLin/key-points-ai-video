@@ -1,0 +1,36 @@
+{
+  "name": "generate_full_card",
+  "description": "仅为抽象变直观和知识断层候选生成包含少量中文文字的完整卡片图片。",
+  "input": {
+    "type": "object",
+    "required": ["runId", "candidateId", "route", "prompt", "attempt"],
+    "properties": {
+      "runId": { "type": "string" },
+      "candidateId": { "type": "string" },
+      "route": { "enum": ["abstract_to_intuitive", "knowledge_gap"] },
+      "prompt": { "type": "string", "minLength": 1 },
+      "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
+      "correction": { "type": "string" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["localPath", "publicUrl", "width", "height", "model", "attempts"],
+    "properties": {
+      "localPath": { "type": "string" },
+      "publicUrl": { "type": "string" },
+      "width": { "const": 310 },
+      "height": { "const": 180 },
+      "model": { "type": "string" },
+      "attempts": { "type": "integer" }
+    }
+  },
+  "errors": [
+    "CLAIM_VERIFICATION_IMAGE_FORBIDDEN",
+    "MISSING_IMAGE_PROMPT",
+    "MISSING_API_KEY",
+    "REQUEST_TIMEOUT",
+    "HTTP_ERROR",
+    "PERSISTENCE_FAILED"
+  ]
+}

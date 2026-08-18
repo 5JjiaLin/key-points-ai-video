@@ -1,0 +1,20 @@
+{
+  "name": "run_chain1_skill",
+  "description": "使用对应的独立 Skill 处理已经分类的候选片段。",
+  "input": {
+    "type": "object",
+    "required": ["runId", "snapshotId", "route", "candidate"],
+    "properties": {
+      "runId": { "type": "string" },
+      "snapshotId": { "type": "string" },
+      "route": {
+        "enum": ["abstract_to_intuitive", "knowledge_gap", "claim_verification"]
+      },
+      "candidate": { "type": "object" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["route", "skillId", "skillVersion", "rawOutput", "durationMs"]
+  }
+}
