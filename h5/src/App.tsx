@@ -10,9 +10,14 @@ import { LearningPathPage, stagesByField } from './features/multi-video-analysis
 import { LearningSelectionPage } from './features/multi-video-analysis/LearningSelectionPage'
 import { MultiVideoProfilePage } from './features/multi-video-analysis/MultiVideoProfilePage'
 import { ResearchQuestionPage } from './features/multi-video-analysis/ResearchQuestionPage'
-import { multiVideoLearningFixture } from './features/multi-video-analysis/learning.fixture'
+import {
+  buildCreatorCollections,
+  buildMultiCreatorVideos,
+  multiVideoLearningFixture,
+} from './features/multi-video-analysis/learning.fixture'
 import type { CreatorCollection, LearningFieldId, LearningVideo } from './features/multi-video-analysis/learning.types'
 import { multiVideoProfileFixture } from './features/multi-video-analysis/profile.fixture'
+import { iceWaterDemoProject } from './fixtures/iceWaterHarness'
 import {
   getShowcase,
   retryJob,
@@ -862,6 +867,7 @@ function HomePage({
 type AppRoute = 'home' | 'video' | 'profile' | 'fields' | 'selection' | 'research' | 'reconstruction' | 'path' | 'learning' | 'complete'
 
 const MEDIUM_DEMO_JOB_ID = '9dd5ff95-0c7e-4ce5-848f-7aeaf1c866a0'
+const USE_LOCAL_FIXTURES = !(import.meta.env.VITE_API_BASE_URL ?? '').trim()
 
 const routeHash: Record<AppRoute, string> = {
   home: '', video: '#video', profile: '#profile', fields: '#learning-fields', selection: '#learning-selection',
@@ -925,13 +931,16 @@ export default function App() {
       : availableProjects
   }, [showcaseProjects, temporaryProject])
   const readyPoolProjects = useMemo(() => poolItems.flatMap((item) => item.project ? [item.project] : []), [poolItems])
-  const selectionVideos = useMemo<LearningVideo[]>(() => readyPoolProjects.map((project) => ({
-    id: project.id,
-    title: project.title,
-    creator: project.creator,
-    duration: `${Math.floor(project.duration / 60)}:${String(Math.floor(project.duration % 60)).padStart(2, '0')}`,
-  })), [readyPoolProjects])
+  const selectionVideos = useMemo<LearningVideo[]>(() => readyPoolProjects.length > 0
+    ? readyPoolProjects.map((project) => ({
+      id: project.id,
+      title: project.title,
+      creator: project.creator,
+      duration: `${Math.floor(project.duration / 60)}:${String(Math.floor(project.duration % 60)).padStart(2, '0')}`,
+    }))
+    : USE_LOCAL_FIXTURES ? buildMultiCreatorVideos(selectedField) : [], [readyPoolProjects, selectedField])
   const creatorCollections = useMemo<CreatorCollection[]>(() => {
+    if (USE_LOCAL_FIXTURES && readyPoolProjects.length === 0) return buildCreatorCollections(selectedField)
     const grouped = new Map<string, LearningVideo[]>()
     selectionVideos.forEach((video) => grouped.set(video.creator, [...(grouped.get(video.creator) ?? []), video]))
     return [...grouped.entries()].filter(([, videos]) => videos.length >= 3).map(([creator, videos]) => ({
@@ -940,7 +949,7 @@ export default function App() {
       creator,
       videos,
     }))
-  }, [selectionVideos])
+  }, [readyPoolProjects.length, selectedField, selectionVideos])
 
   const navigate = (next: AppRoute, replace = false) => {
     const method = replace ? 'replaceState' : 'pushState'
@@ -948,10 +957,17 @@ export default function App() {
     setRoute(next)
   }
   const loadShowcase = async () => {
+    if (USE_LOCAL_FIXTURES) {
+      const items = [iceWaterDemoProject]
+      setShowcaseProjects(items)
+      setShowcaseError(null)
+      return items
+    }
     try { const items = await getShowcase(); setShowcaseProjects(items); setShowcaseError(null); return items }
     catch (error) { setShowcaseError(error instanceof Error ? error.message : String(error)); return [] }
   }
   const loadPool = async () => {
+    if (USE_LOCAL_FIXTURES) return []
     try { const items = await getKnowledgePool(); setPoolItems(items); return items }
     catch { return [] }
   }
@@ -1072,6 +1088,10 @@ export default function App() {
     setPathAnalysisId(null)
     window.localStorage.removeItem(stableAnalysisStorageKey)
     window.localStorage.removeItem(pathAnalysisStorageKey)
+    if (USE_LOCAL_FIXTURES) {
+      navigate('research')
+      return
+    }
     try {
       const started = await startReconstruction({
         videoIds: selection.videoIds,
@@ -1088,11 +1108,12 @@ export default function App() {
   }
 
   const submitResearchQuestion = async (question: string) => {
-    if (!stableAnalysisId) return
     setResearchQuestion(question)
     window.localStorage.setItem(questionStorageKey, question)
     setReconstructionError(null)
     navigate('reconstruction')
+    if (USE_LOCAL_FIXTURES) return
+    if (!stableAnalysisId) return
     try {
       const started = await startReconstructionPath(stableAnalysisId, question)
       setPathAnalysisId(started.analysisId)
@@ -1118,7 +1139,7 @@ export default function App() {
   else if (route === 'research') content = <ResearchQuestionPage error={reconstructionError} field={selectedField} loading={Boolean(stableAnalysisId && recommendedQuestions.length === 0 && !reconstructionError)} recommendedQuestions={stableAnalysisId ? recommendedQuestions : undefined} onBack={() => navigate('selection')} onSubmit={(question) => void submitResearchQuestion(question)} />
   else if (route === 'reconstruction') content = reconstructionError
     ? <main className="player-feed-empty"><button onClick={() => navigate('research')} type="button">返回研究问题</button><p>{reconstructionError}</p></main>
-    : <AIReconstructionPage field={selectedField} loadingVideoSrc="/assets/multi-video/ai-reconstruction-loading.mp4" progress={reconstructionStatus?.progress ?? 0} onBack={() => navigate('research')} onBrowseVideos={() => navigate('home')} onComplete={() => { if (learningPath) navigate('path', true) }} />
+    : <AIReconstructionPage field={selectedField} loadingVideoSrc="/assets/multi-video/ai-reconstruction-loading.mp4" progress={reconstructionStatus?.progress} onBack={() => navigate('research')} onBrowseVideos={() => navigate('home')} onComplete={() => { if (learningPath || USE_LOCAL_FIXTURES) navigate('path', true) }} />
   else if (route === 'path') content = <LearningPathPage field={selectedField} path={learningPath} question={researchQuestion} progressByStage={progressByStage} onBack={() => navigate('profile')} onStart={(index) => { setLearningStageIndex(index); navigate('learning') }} />
   else if (route === 'learning') content = <KnowledgePointLearningPage field={selectedField} initialStageIndex={learningStageIndex} path={learningPath} progressByStage={progressByStage} onBack={() => navigate('path')} onComplete={(result) => { setProgressByStage((current) => current.map((value, index) => result.completedStageIndexes.includes(index) ? 100 : value)); setCompletionSummary({ accuracy: result.accuracy, completedStageCount: result.completedStageIndexes.length, durationSeconds: result.durationSeconds, points: result.points }); navigate('complete', true) }} />
   else if (route === 'complete') content = <KnowledgePointCompletePage accuracy={completionSummary.accuracy} completedStageCount={completionSummary.completedStageCount} durationSeconds={completionSummary.durationSeconds} hasNextKnowledgePoint={progressByStage.some((value) => value < 100)} points={completionSummary.points} onBack={() => navigate('path')} onNext={() => navigate('path')} onReturnPath={() => navigate('path')} />
