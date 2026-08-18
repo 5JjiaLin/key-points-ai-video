@@ -1,208 +1,243 @@
 # 划重点 · Key Points
 
-> **面向科普与知识类短视频的 AI 内容理解与知识导航产品。**  
-> 不只是总结视频，而是在视频时间轴上同时回答两件事：**“现在在讲什么？”** 和 **“这里我真的看懂了吗？”**
+> **Understand the video, not just summarize it.**
+>
+> 面向科普与知识类短视频的 AI 内容理解与知识导航 Demo。
+
+![Status](https://img.shields.io/badge/status-product_demo-111827)
+![H5](https://img.shields.io/badge/H5-React_%2B_TypeScript-149eca)
+![Backend](https://img.shields.io/badge/backend-FastAPI-009688)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+" />
-  <img src="https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/React-H5-61DAFB?logo=react&logoColor=111" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-frontend-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-build-646CFF?logo=vite&logoColor=white" alt="Vite" />
+  <img src="docs/assets/product-demo.png" alt="划重点产品 Demo：时间轴、理解补丁与知识地图" width="100%" />
 </p>
 
----
+> Hero 中的界面来自仓库内真实运行的 H5。灰色视频区域用于避免把无公开授权的第三方视频放入仓库；Fixture 驱动的交互、状态和时间轴均为实际产品代码。
 
-## 为什么做「划重点」
+## Why Key Points
 
-知识视频的问题往往不是“没有信息”，而是用户在观看过程中会遇到三种断层：
+普通视频摘要回答的是“这段视频说了什么”，但用户真正卡住的时刻发生在播放过程中：
 
-- **听到了，但没有概念**：例如“65℃”“800V”到底意味着什么；
-- **听到了，但不知道能不能信**：一句结论是否过于绝对、需要什么前提；
-- **听到了，但前置知识缺失**：博主默认用户理解某个专业词或机制，实际并没有。
+- **现在在讲什么？** 我需要快速定位知识结构、问题和答案。
+- **这里我真的看懂了吗？** 抽象数字、论据跳跃或陌生概念需要恰到好处的解释。
 
-同时，视频天然是线性媒介。用户很难快速知道整条视频的知识结构、当前讲到哪里、结论是什么，以及之后如何准确跳回对应片段。
+「划重点」不是另一个摘要生成器，而是叠加在视频时间轴上的 **AI 知识导航层**：先理解整段内容，再在正确的时间提供知识点导航与理解补丁。
 
-「划重点」尝试给视频增加一层 **AI 知识导航层**，让用户在不离开播放场景的情况下理解、定位和回看知识。
-
----
-
-## 核心设计：两条 AI 链路
-
-| | 链路 1 · 内容理解补丁 | 链路 2 · 视频知识导航 |
-|---|---|---|
-| 解决什么 | 帮助用户真正看懂某个具体表达 | 告诉用户整条视频正在讲什么 |
-| 识别内容 | 抽象数字、可疑说法、知识断层 | 主干知识点与讲解区间 |
-| 页面形态 | 到达时间点后出现轻提示，可展开详情 | 播放期间常驻显示当前问题、进度和答案 |
-| 用户忽略后 | 自动进入“本视频知识点” | 始终跟随视频时间轴 |
-| 回看方式 | 查看对应补充解释 | 跳回知识点讲解起点 |
-
-一句话区分：
-
-> **链路 2 负责告诉用户“视频正在讲什么”；链路 1 负责帮助用户“真正看懂”。**
-
-### 链路 1：内容理解补丁
-
-当前聚焦三类理解障碍：
-
-1. **把抽象数字变直观**：用熟悉参照、区间或现实场景解释数字；
-2. **验证视频说法**：判断“基本准确 / 有条件成立 / 表达过于绝对 / 存在争议 / 证据不足”；
-3. **补上知识断层**：对专业词、机制或默认前置知识做一句话补充解释。
-
-### 链路 2：视频知识导航
-
-把视频主干知识重构成可跟随时间轴的知识节点：
-
-- 当前正在回答什么问题；
-- 这个知识点从哪里开始、到哪里结束；
-- 当前讲解还剩多久；
-- 讲完后的简短结论是什么；
-- 点击后如何快速跳回对应片段。
-
----
-
-## 当前 Demo 能做什么
-
-当前仓库包含一条可运行的本地真实视频链路：
+## How It Works
 
 ```mermaid
 flowchart LR
-    A[H5 上传视频] --> B[FastAPI 任务后端]
-    B --> C[共享视频证据库]
-    C --> C1[Whisper / 字幕]
-    C --> C2[OCR]
-    C --> C3[关键帧 / 画面证据]
-    C --> D[链路 1 Harness]
-    C --> E[链路 2 Harness]
-    D --> F[理解补丁 + 触发时间]
-    E --> G[知识点问答 + 时间区间]
-    F --> H[VideoProjectDto]
-    G --> H
-    H --> I[H5 时间轴交互]
+    A["打开或上传视频"] --> B["播放前多模态分析"]
+    B --> C["链路 1：预测理解障碍"]
+    B --> D["链路 2：重建知识结构"]
+    C --> E["统一视频时间轴"]
+    D --> E
+    E --> F["提示、导航与区间回看"]
 ```
 
-已实现的主路径包括：
+## Two AI Pipelines
 
-- H5 上传真实视频并创建异步解析任务；
-- Whisper / OCR / 关键帧共享证据提取；
-- 链路 1 生成与时间轴绑定的理解补丁；
-- 链路 2 生成知识点问题、答案与讲解时间段；
-- 后端统一返回毫秒制 `VideoProjectDto`；
-- H5 根据播放时间驱动知识提示、进度与回看交互；
-- 任务状态、失败信息与重试接口；
-- 本地任务状态持久化，刷新后可继续查询。
+| Pipeline | 回答的问题 | 核心输出 | 产品行为 |
+| --- | --- | --- | --- |
+| 链路 1 · 理解补丁 | “为什么这里可能看不懂？” | 观念质疑、数字体感、概念补懂及补充解释 | 在相关时间窗轻量提示；展开后查看完整解释；忽略后仍可找回 |
+| 链路 2 · 知识导航 | “这段视频正在讲什么？” | 主知识点、问题、答案、完整解释区间 | 常驻知识地图；点击可跳转并回看完整区间 |
 
-> 当前是产品 Demo / Harness 验证仓库，不是生产级视频平台。账号体系、生产级转码、云端笔记同步等不在当前范围内。
+> **链路 2 负责告诉用户“视频正在讲什么”；链路 1 负责帮助用户“真正看懂”。**
 
----
+链路 1 聚焦三类高价值障碍，并为每类提供“轻提示 → 展开解释”两级状态：
 
-## 项目结构
+1. **观念质疑**：识别绝对化或容易误解的说法，从不同人群与场景补充条件；
+2. **数字体感**：把温度、距离、比例等抽象数字转成可感知的日常对比；
+3. **概念补懂**：用一句话和视觉解释补齐陌生术语，降低继续观看的理解门槛。
+
+链路 2 不把“出现关键词的瞬间”当作知识点，而是绑定一个包含完整解释的时间范围，保留问题、答案与证据引用。
+
+## Demo
+
+<p align="center">
+  <img src="docs/assets/demo-timeline.png" alt="视频时间轴与当前问题" width="31%" />
+  <img src="docs/assets/demo-understanding-patch.png" alt="理解补丁卡片" width="31%" />
+  <img src="docs/assets/demo-knowledge-map.png" alt="知识地图与时间定位" width="31%" />
+</p>
+
+| 时间轴 | 理解补丁 | 知识地图 |
+| --- | --- | --- |
+| 显示当前问题、讲解状态与剩余时间 | 在用户可能卡住时补充直觉化解释 | 用问题、答案和时间范围重建视频结构 |
+
+以上截图来自内置 Fixture，便于零密钥复现交互。真实视频上传、ASR、OCR、关键帧抽取及后端链路已单独验证，证据与边界见 [真实视频验证记录](docs/real-video-validation.md)。
+
+## AI Pipeline
+
+```mermaid
+flowchart LR
+    V["Video"] --> M["Multimodal evidence"]
+    M --> A["ASR"]
+    M --> O["OCR"]
+    M --> K["Keyframes"]
+    A --> E["Shared evidence"]
+    O --> E
+    K --> E
+    E --> C1["Chain 1"]
+    E --> C2["Chain 2"]
+    C1 --> H["Harness validation"]
+    C2 --> H
+    H --> DTO["VideoProjectDto"]
+    DTO --> UI["Mobile H5"]
+```
+
+### 为什么需要 Harness
+
+模型输出不会直接进入前端，而要经过一条可验证的结构化管线：
 
 ```text
-region-contest/
-├── h5/                 # 移动端优先 H5，React + TypeScript + Vite
-├── backend/            # FastAPI 任务后端与 VideoProjectDto 接口
-├── video_pipeline/     # 视频解析、Whisper/OCR/关键帧证据管线
-├── 链路1_harness/      # 内容理解补丁的 Harness 与验证
-├── 链路2_harness/      # 视频知识导航的 Harness 与验证
-├── 链路1skill/         # 链路 1 Skill 设计
-├── 链路2skill/         # 链路 2 Skill 设计
-├── docs/               # 真实视频验收与开发文档
-└── AGENTS(1).md        # 当前产品决策与开发约束
+Model output
+  → JSON Schema
+  → 内容完整性检查
+  → 时间点 / 时间范围检查
+  → fallback 与审核状态
+  → 稳定的 VideoProjectDto
 ```
 
----
+实现分别位于 [链路1_harness](链路1_harness) 与 [链路2_harness](链路2_harness)。
+
+## Product Decisions
+
+| 决策 | 原因 |
+| --- | --- |
+| 双链路分工而非单次摘要 | “内容结构”与“理解障碍”是两类不同问题 |
+| 播放前分析而非边播边生成 | 保证时间轴一致，避免提示延迟和内容漂移 |
+| 绑定完整解释区间 | 用户回看时需要上下文，而不是一个关键词时间点 |
+| 理解补丁不遮挡视频 | 提示应帮助观看，而不是打断观看 |
+| 被忽略的提示仍保留 | 用户当下不需要，不代表之后无法找回 |
+| 密钥只留在服务端 | 浏览器不接触模型或云服务凭证 |
+
+## Current Implementation
+
+已实现：
+
+- 可直接运行的移动端 H5 与零密钥 Fixture；
+- 真实视频上传、FastAPI 异步任务与状态轮询；
+- Whisper ASR、OCR、关键帧与共享证据层；
+- 链路 1 三类理解补丁、时间窗校验与 fallback；
+- 链路 2 问题、答案、解释区间、证据 ID 与时间排序；
+- 毫秒级统一 `VideoProjectDto`；
+- H5 加载、失败、空结果、提示、忽略、展开与时间跳转状态。
+
+当前边界：
+
+- 这是产品 Demo，不是生产级视频平台；
+- 尚未包含账号体系、生产转码、云端笔记或运营后台；
+- 仓库不包含无公开授权的原始视频、关键帧或运行 trace；
+- 当前验证证明工程链路、结构约束和 fallback 可工作，不等于已经证明模型准确率或用户学习效果。
 
 ## Quick Start
 
-### 环境要求
-
-- macOS（当前主要验证环境）
-- Python 3.11+
-- Node.js / npm
-- `ffmpeg` / `ffprobe`
-
-### 1. 克隆并安装依赖
+### A. 只体验产品交互（无需 API Key）
 
 ```bash
 git clone https://github.com/5JjiaLin/region-contest.git
-cd region-contest
+cd region-contest/h5
+npm ci
+npm run dev
+```
 
+浏览器打开终端给出的地址，点击任意视频卡片即可进入 Fixture Demo。
+
+### B. 运行真实视频链路
+
+环境要求：
+
+- macOS 或 Linux
+- Python 3.11+
+- Node.js 与 npm
+- `ffmpeg` / `ffprobe`
+
+```bash
+cd region-contest
 python3 -m pip install -e video_pipeline -e '链路2_harness[media]' -e backend
 
 cd 链路1_harness
-npm ci --registry=https://registry.npmjs.org
+npm ci
 npm run build
-
-cd ../h5
-npm ci --registry=https://registry.npmjs.org
 cd ..
-```
 
-### 2. 配置环境变量
-
-```bash
 cp .env.example .env
 ```
 
-只在服务端 `.env` 中填写模型服务所需凭据。**不要把真实 API Key 提交到仓库，也不要使用 `VITE_*` 将服务端密钥暴露到前端。**
-
-### 3. 启动后端
+按 [.env.example](.env.example) 配置服务端密钥，然后分别启动：
 
 ```bash
+# Terminal 1
 set -a && source .env && set +a
-PYTHONPATH='backend:video_pipeline/src:链路2_harness/src' \
-  python3 -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000
-```
+PYTHONPATH="$PWD/backend:$PWD/video_pipeline/src:$PWD/链路2_harness/src" \
+  python3 -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 
-### 4. 启动 H5
-
-另开一个终端：
-
-```bash
+# Terminal 2
 cd h5
-npm run dev -- --host 0.0.0.0
+npm ci
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
 ```
 
-电脑访问 Vite 输出的本地地址；手机与 Mac 位于同一 Wi-Fi 时，可直接访问 Vite 输出的 `Network` 地址。
+真实上传链路通过后端访问模型服务；不要把任何密钥写入 H5 环境变量或提交到 Git。
 
----
+## Architecture / Repository
+
+```text
+region-contest/
+├── backend/            # FastAPI 上传、任务编排与 DTO 输出
+├── h5/                 # React + TypeScript 移动端产品界面
+├── video_pipeline/     # 视频探测、ASR、OCR、关键帧与证据归一化
+├── 链路1_harness/      # 理解补丁生成、校验与 fallback
+├── 链路2_harness/      # 知识点生成、审核、区间与证据校验
+├── docs/               # 真实视频验证与产品视觉证据
+├── .env.example        # 安全的配置模板
+└── AGENTS.md           # 项目契约、数据结构与验收边界
+```
 
 ## API
 
-| Method | Endpoint | 作用 |
-|---|---|---|
-| `POST` | `/api/videos` | 上传视频并创建任务 |
-| `GET` | `/api/jobs/{jobId}` | 查询阶段、进度、错误与重试状态 |
-| `POST` | `/api/jobs/{jobId}/retry` | 重试失败任务 |
-| `GET` | `/api/jobs/{jobId}/result` | 获取 `VideoProjectDto` |
-| `GET` | `/api/media/{jobId}/{path}` | 获取视频、关键帧及生成资源 |
+| Method | Path | 用途 |
+| --- | --- | --- |
+| `GET` | `/api/health` | 服务健康检查 |
+| `POST` | `/api/videos` | 上传视频并创建分析任务 |
+| `GET` | `/api/jobs/{job_id}` | 查询阶段、进度、错误与重试状态 |
+| `POST` | `/api/jobs/{job_id}/retry` | 重试可恢复的失败任务 |
+| `GET` | `/api/jobs/{job_id}/result` | 获取统一 `VideoProjectDto` |
+| `GET` | `/api/media/{job_id}/{path}` | 读取任务媒体与生成资源 |
 
----
+## Validation
 
-## 验证
+截至 **2026-08-18**，仓库内共有 **65 项自动化测试**通过：
+
+| Surface | Tests |
+| --- | ---: |
+| video_pipeline | 8 |
+| 链路2_harness | 41 |
+| backend | 3 |
+| 链路1_harness | 12 |
+| h5 | 1 |
+
+同时通过 H5 production build 与 npm audit。关键命令：
 
 ```bash
-PYTHONPATH='video_pipeline/src' python3 -m unittest discover video_pipeline/tests
-PYTHONPATH='video_pipeline/src:链路2_harness/src' python3 -m unittest discover 链路2_harness/tests
-PYTHONPATH='backend:video_pipeline/src:链路2_harness/src' python3 -m unittest discover backend/tests
+PYTHONPATH="$PWD/video_pipeline/src" python3 -m unittest discover -s video_pipeline/tests
+PYTHONPATH="$PWD/链路2_harness/src:$PWD/video_pipeline/src" python3 -m unittest discover -s 链路2_harness/tests
+PYTHONPATH="$PWD/backend:$PWD/video_pipeline/src:$PWD/链路2_harness/src" python3 -m unittest discover -s backend/tests
 
 cd 链路1_harness && npm test
-cd ../h5 && npm test && npm run build
+cd ../h5 && npm test && npm run build && npm audit
 ```
 
-真实视频验收记录见 [`docs/real-video-validation.md`](docs/real-video-validation.md)。
+真实视频验证覆盖一条约 138 秒短视频与一条约 732 秒长视频。完整数据、fallback 情况与未通过项见 [docs/real-video-validation.md](docs/real-video-validation.md)。
 
----
+## Limitations
 
-## 当前阶段
+- 仓库不公开原始 Demo 视频，因此 Fixture 不代表模型实时生成；
+- Whisper `base/int8` 在人名、术语和同音词上仍可能产生转写错误；
+- 当论断缺少独立来源时，验证层会明确返回“证据不足”，不会伪造结论；
+- 长视频曾触发云模型 fallback，准确率仍需在稳定云环境和人工标注集上重跑；
+- 尚无用户研究可以证明它提升了理解率、完播率或满意度。
 
-这个仓库记录「划重点」在大区赛阶段的产品 Demo、AI Harness 与真实视频验证过程。
+## License
 
-当前重点不是继续堆功能，而是验证三个问题：
-
-1. AI 能否稳定识别真正影响用户理解的内容，而不是泛泛总结；
-2. 知识点能否准确绑定到视频时间区间，而不是只定位关键词；
-3. 两条 AI 链路能否同时工作，又不打断原本的视频观看体验。
-
-如果这些问题成立，视频就不再只是从头播到尾的一条内容流，而可以变成一张可理解、可定位、可回看的知识地图。
+本仓库目前**未声明开源许可证**。公开可见不等于授权复制、修改或分发；许可证将在明确代码与素材授权范围后补充。
