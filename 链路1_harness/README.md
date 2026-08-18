@@ -15,13 +15,13 @@
 ```text
 抽象变直观
 → Skill 输出问题、答案、完整卡片生图 Prompt
-→ Harness 调用 Agnes
-→ 直接生成包含少量中文文字的完整 310×180 卡片图片
+→ Harness 调用万相 2.7
+→ 直接生成包含少量中文文字的 2K 完整卡片图片，按 310×180 CSS 尺寸展示
 
 知识断层
 → Skill 输出问题、答案、完整卡片生图 Prompt
-→ Harness 调用 Agnes
-→ 直接生成包含少量中文文字的完整 310×180 卡片图片
+→ Harness 调用万相 2.7
+→ 直接生成包含少量中文文字的 2K 完整卡片图片，按 310×180 CSS 尺寸展示
 
 验证真假
 → Skill 输出问题、答案、核验状态与条件
@@ -45,7 +45,7 @@
 
 - Route Classifier
 - 三个 Skill Runner
-- Agnes Full Card Image Tool
+- Wan 2.7 Full Card Image Tool
 - 本地卡片资源持久化与裁切
 - Content Grader
 - Visual Grader
@@ -59,7 +59,7 @@
 
 - Content Grader：检查字段、路由边界、Prompt 和触发时间；
 - Arbiter：处理重复、时间冲突和提示频率；
-- Visual Grader：检查 310×180 尺寸，并可接入视觉模型做文字和语义审核。
+- Visual Grader：检查完整卡 `930×540`、轻提示贴图 `120×120` 的 3 倍屏落盘尺寸，并可接入视觉模型做文字和语义审核。
 
 ## 快速运行 Mock Demo
 
@@ -70,27 +70,27 @@ npm run demo
 
 Mock Demo 不调用真实模型和生图 API，只验证完整 Harness 流程。
 
-## 接入真实 Agnes
+## 接入真实万相 2.7
 
 1. 撤销任何已经公开过的密钥；
 2. 复制 `.env.example` 为服务端环境变量；
-3. 配置新的 `AGNES_API_KEY`；
-4. 使用 `AgnesFullCardImageTool`；
-5. 不允许 H5 直接调用 Agnes。
+3. 配置新的 `DASHSCOPE_API_KEY`；
+4. 使用 `WanChain1ImageTool`；
+5. 不允许 H5 直接调用百炼生图 API。
 
 ```ts
 import {
-  AgnesFullCardImageTool,
+  WanChain1ImageTool,
   Chain1Harness,
   DEFAULT_CONFIG,
   LocalCardAssetStore,
 } from "./src/index.js";
 
 const store = new LocalCardAssetStore(DEFAULT_CONFIG.assetDirectory);
-const imageTool = new AgnesFullCardImageTool(DEFAULT_CONFIG, store);
+const imageTool = new WanChain1ImageTool(DEFAULT_CONFIG, store);
 ```
 
-Agnes 原生请求使用 `1K + 16:9`。资源下载后由服务端裁切为 `310×180` WebP。Prompt 中仍要按 310×180 小卡约束构图，并把关键文字放在中心安全区。
+万相 `wan2.7-image-pro` 完整卡请求使用 2K 的 `2560×1440`，轻提示贴图使用 `2048×2048`。资源下载后分别保存为适配 3 倍屏的 `930×540` 与 `120×120` PNG；H5 展示尺寸仍为 `310×180` 和 `40×40` CSS px。Prompt 仍按 310×180 小卡约束构图，并把关键文字放在中心安全区。
 
 ## 必须由 Codex 接入的部分
 

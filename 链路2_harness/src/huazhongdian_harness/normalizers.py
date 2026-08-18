@@ -196,6 +196,24 @@ def parse_candidate_group_audit(raw: str) -> CandidateGroupAudit:
     )
 
 
+def parse_candidate_group_audits(raw: str) -> list[CandidateGroupAudit]:
+    parsed = parse_json_object(raw)
+    rows = parsed.get("group_audits") if isinstance(parsed, dict) else None
+    if not isinstance(rows, list) or not rows:
+        raise ModelOutputError("group_audits must be a non-empty array")
+    audits = [
+        parse_candidate_group_audit(json.dumps(row, ensure_ascii=False))
+        for row in rows
+        if isinstance(row, dict)
+    ]
+    if len(audits) != len(rows):
+        raise ModelOutputError("group_audits rows must be objects")
+    knowledge_point_ids = [audit.knowledge_point_id for audit in audits]
+    if len(set(knowledge_point_ids)) != len(knowledge_point_ids):
+        raise ModelOutputError("group_audits knowledge_point_id values must be unique")
+    return audits
+
+
 def parse_judge_output(raw: str) -> tuple[dict[str, float], float, list[str]]:
     audit = parse_judge_audit(raw)
     return audit.scores, audit.overall_score, audit.failure_reasons

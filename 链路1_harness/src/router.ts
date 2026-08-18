@@ -5,6 +5,7 @@ import type {
   RouteOrDiscard,
   SupplementRoute,
 } from "./domain.js";
+import { CHAIN1_TASK_CONTRACT } from "./task.js";
 
 export interface JsonInvoker {
   invokeJson<T>(args: {
@@ -33,6 +34,7 @@ export const ROUTE_CLASSIFIER_SYSTEM_PROMPT = `
 2. knowledge_gap：用户不知道术语、分类、缩写或专业状态是什么意思。
 3. claim_verification：用户理解句意，但会自然质疑真假、范围、因果、概念等同或绝对化。
 4. discard：没有必要补充，或作者已经解释清楚。
+只能依据输入的 ASR 视频文案和时间戳分类；OCR 与关键帧仅在确定为 abstract_to_intuitive 后供对应 Skill 使用。evidence 必须逐字引用 ASR 文案，禁止补入外部常识。
 允许一个主路由和最多一个次路由。输出严格 JSON。
 `;
 
@@ -57,8 +59,9 @@ export class PromptRouteClassifier implements RouteClassifier {
       systemPrompt: ROUTE_CLASSIFIER_SYSTEM_PROMPT,
       schemaName: "route-decision",
       input: {
+        task: CHAIN1_TASK_CONTRACT,
         video: { title: snapshot.title, description: snapshot.description },
-        candidate,
+        evidence: routeEvidenceInput(candidate),
       },
     });
 
@@ -77,17 +80,9 @@ export class PromptRouteClassifier implements RouteClassifier {
           systemPrompt: `${ROUTE_CLASSIFIER_SYSTEM_PROMPT}\n一次分类当前候选段，每个 candidate_id 必须恰好输出一条决策。\n根对象必须严格为：{\"decisions\":[{\"candidate_id\":\"candidate_semantic-0001\",\"is_candidate\":true,\"primary_route\":\"abstract_to_intuitive\",\"secondary_route\":null,\"route_scores\":{\"abstract_to_intuitive\":0.9,\"knowledge_gap\":0.1,\"claim_verification\":0.1,\"discard\":0.1},\"confidence\":0.9,\"reason\":\"...\",\"evidence\":[\"...\"]}]}。不得改字段名，不得直接输出数组。`,
           schemaName: "route-decision-batch",
           input: {
+            task: CHAIN1_TASK_CONTRACT,
             video: { title: snapshot.title, description: snapshot.description },
-            candidates: batch.map((candidate) => ({
-              id: candidate.id,
-              sourceText: candidate.sourceText,
-              startMs: candidate.startMs,
-              endMs: candidate.endMs,
-              contextBefore: candidate.contextBefore,
-              contextAfter: candidate.contextAfter,
-              ocrText: candidate.ocrText,
-              signals: candidate.signals,
-            })),
+            candidates: batch.map(routeEvidenceInput),
           },
         });
         for (const item of batchRows(raw)) {
@@ -117,6 +112,18 @@ export class PromptRouteClassifier implements RouteClassifier {
     }
     return decisions;
   }
+}
+
+function routeEvidenceInput(candidate: CandidateWindow): Record<string, unknown> {
+  return {
+    id: candidate.id,
+    sourceText: candidate.sourceText,
+    startMs: candidate.startMs,
+    endMs: candidate.endMs,
+    contextBefore: candidate.contextBefore,
+    contextAfter: candidate.contextAfter,
+    signals: candidate.signals,
+  };
 }
 
 function batchRows(value: unknown): Array<Record<string, unknown>> {

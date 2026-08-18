@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { Chain1HarnessConfig } from "./config.js";
 import type { EnvironmentSnapshot, VideoEnvironmentInput } from "./domain.js";
 
@@ -24,7 +24,7 @@ export function freezeEnvironment(
 
   return Object.freeze({
     ...structuredClone(input),
-    snapshotId: `snapshot_${digest}_${randomUUID().slice(0, 6)}`,
+    snapshotId: `snapshot_${digest}`,
     createdAt: new Date().toISOString(),
     skillVersions: {
       abstractToIntuitive: config.versions.abstractToIntuitive,

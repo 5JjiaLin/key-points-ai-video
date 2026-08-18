@@ -9,5 +9,8 @@ description = "Shared ASR, OCR and evidence timeline pipeline for Huazhongdian."
 requires-python = ">=3.11"
 dependencies = ["opencc-python-reimplemented>=0.1.7"]
 
+[project.optional-dependencies]
+funasr = ["funasr>=1.3.26", "torch>=2.4", "torchaudio>=2.4"]
+
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -16,16 +16,16 @@ import type {
 import type { BatchRouteClassifier, RouteClassifier } from "./router.js";
 import type { SkillRegistry } from "./skills.js";
 import { adaptSkillOutput, runSkill } from "./skills.js";
-import { gradeContent, gradeVisual, type VisualSemanticInspector } from "./graders.js";
+import { gradeContent, gradeHintSticker, gradeVisual, type VisualSemanticInspector } from "./graders.js";
 import { arbitrateCandidates } from "./arbiter.js";
 import { JsonlTraceStore, type TraceStore } from "./trace.js";
-import type { FullCardImageTool } from "./image/tool.js";
+import type { Chain1ImageTool } from "./image/tool.js";
 
 export interface Chain1HarnessDependencies {
   config: Chain1HarnessConfig;
   routeClassifier: RouteClassifier;
   skills: SkillRegistry;
-  imageTool: FullCardImageTool;
+  imageTool: Chain1ImageTool;
   visualSemanticInspector?: VisualSemanticInspector;
   createTraceStore?: (runId: string) => TraceStore;
   modelVersions?: Record<string, string>;
@@ -45,6 +45,9 @@ export class Chain1Harness {
     let contentFailed = 0;
     let visualPassed = 0;
     let visualFallbacks = 0;
+    let hintStickerPassed = 0;
+    let hintStickerFallbacks = 0;
+    let routeFallbacks = 0;
 
     await trace.append({
       runId: task.runId,
@@ -60,8 +63,20 @@ export class Chain1Harness {
       ? this.deps.routeClassifier
       : undefined;
     const batchStarted = Date.now();
-    const batchDecisions = batchClassifier
+    const rawBatchDecisions = batchClassifier
       ? await batchClassifier.classifyBatch(snapshot, candidates)
+      : undefined;
+    const batchDecisions = rawBatchDecisions
+      ? new Map(
+          [...rawBatchDecisions].map(([candidateId, decision]) => [
+            candidateId,
+            enforceRouteDecision(
+              decision,
+              this.deps.config,
+              candidates.find((candidate) => candidate.id === candidateId),
+            ),
+          ]),
+        )
       : undefined;
     if (batchDecisions) {
       await trace.append({
@@ -75,13 +90,18 @@ export class Chain1Harness {
       });
     }
     const skillCandidateIds = batchDecisions
-      ? selectSkillCandidateIds(candidates, batchDecisions, 2)
+      ? selectSkillCandidateIds(candidates, batchDecisions)
       : undefined;
 
     for (const candidate of candidates) {
       const routeStarted = Date.now();
       const decision = batchDecisions?.get(candidate.id) ??
-        await this.deps.routeClassifier.classify(snapshot, candidate);
+        enforceRouteDecision(
+          await this.deps.routeClassifier.classify(snapshot, candidate),
+          this.deps.config,
+          candidate,
+        );
+      if (decision.reason.includes("回退")) routeFallbacks += 1;
       await trace.append({
         runId: task.runId,
         snapshotId: snapshot.snapshotId,
@@ -117,6 +137,7 @@ export class Chain1Harness {
 
       const routes = selectRoutes(decision.primaryRoute, decision.secondaryRoute, this.deps.config);
       for (const route of routes) {
+        const routeCandidate = candidateEvidenceForRoute(candidate, route);
         const skillInput = {
           runId: task.runId,
           snapshotId: snapshot.snapshotId,
@@ -126,8 +147,9 @@ export class Chain1Harness {
             ...(snapshot.description ? { description: snapshot.description } : {}),
             durationMs: snapshot.durationMs,
           },
-          candidate,
+          candidate: routeCandidate,
           routeDecision: decision,
+          activeRoute: route,
         };
         try {
           const execution = await runSkill(
@@ -148,7 +170,7 @@ export class Chain1Harness {
           });
 
           for (const item of adaptSkillOutput(execution, skillInput)) {
-            const grade = gradeContent(item);
+            const grade = gradeContent(item, routeCandidate);
             await trace.append({
               runId: task.runId,
               snapshotId: snapshot.snapshotId,
@@ -197,34 +219,53 @@ export class Chain1Harness {
 
     const supplements: FinalSupplement[] = [];
     for (const candidate of arbitration.selected) {
-      if (candidate.decision.displayMode === "pending_review") {
-        suppressed.push(toSuppressed(candidate, "等待人工复核"));
-        continue;
-      }
+      let renderMode: FinalSupplement["renderMode"];
+      let cardImageUrl: string | undefined;
       if (candidate.route === "claim_verification") {
-        supplements.push(toFinal(candidate, "verification_template"));
-        continue;
-      }
-
-      if (!this.deps.config.image.enabled) {
+        renderMode = "verification_template";
+      } else if (!this.deps.config.image.enabled) {
         visualFallbacks += 1;
-        supplements.push(toFinal(candidate, "text_fallback"));
-        continue;
-      }
-
-      const visualResult = await this.generateAndGradeVisual(task.runId, snapshot, candidate, trace);
-      if (visualResult.asset) {
-        visualPassed += 1;
-        supplements.push(
-          toFinal(candidate, "full_generated_image", visualResult.asset.publicUrl),
-        );
+        renderMode = "text_fallback";
       } else {
-        visualFallbacks += 1;
-        supplements.push(toFinal(candidate, "text_fallback"));
+        const visualResult = await this.generateAndGradeVisual(task.runId, snapshot, candidate, trace);
+        if (visualResult.asset) {
+          visualPassed += 1;
+          renderMode = "full_generated_image";
+          cardImageUrl = visualResult.asset.publicUrl;
+        } else {
+          visualFallbacks += 1;
+          renderMode = "text_fallback";
+        }
       }
+
+      let hintStickerImageUrl: string | undefined;
+      if (candidate.decision.displayMode === "auto_prompt") {
+        if (!this.deps.config.image.enabled || !this.deps.config.image.hintSticker.enabled) {
+          hintStickerFallbacks += 1;
+        } else {
+          const hintStickerResult = await this.generateHintSticker(
+            task.runId,
+            snapshot,
+            candidate,
+            trace,
+          );
+          if (hintStickerResult.asset) {
+            hintStickerPassed += 1;
+            hintStickerImageUrl = hintStickerResult.asset.publicUrl;
+          } else {
+            hintStickerFallbacks += 1;
+          }
+        }
+      }
+      supplements.push(toFinal(candidate, renderMode, cardImageUrl, hintStickerImageUrl));
     }
 
-    const status = visualFallbacks > 0 ? "ready_with_fallbacks" : "ready";
+    const status = chain1ReadyStatus(
+      routeFallbacks,
+      contentFailed,
+      visualFallbacks,
+      hintStickerFallbacks,
+    );
     return {
       runId: task.runId,
       snapshotId: snapshot.snapshotId,
@@ -232,7 +273,14 @@ export class Chain1Harness {
       status,
       supplements,
       suppressed,
-      graderSummary: { contentPassed, contentFailed, visualPassed, visualFallbacks },
+      graderSummary: {
+        contentPassed,
+        contentFailed,
+        visualPassed,
+        visualFallbacks,
+        hintStickerPassed,
+        hintStickerFallbacks,
+      },
       tracePath: trace.path,
     };
   }
@@ -242,7 +290,7 @@ export class Chain1Harness {
     snapshot: EnvironmentSnapshot,
     candidate: UnifiedSupplementCandidate,
     trace: TraceStore,
-  ): Promise<{ asset?: Awaited<ReturnType<FullCardImageTool["generate"]>>; grade: GraderResult }> {
+  ): Promise<{ asset?: Awaited<ReturnType<Chain1ImageTool["generate"]>>; grade: GraderResult }> {
     let correction: string | undefined;
     let lastGrade: GraderResult = {
       passed: false,
@@ -295,32 +343,170 @@ export class Chain1Harness {
     }
     return { grade: lastGrade };
   }
+
+  private async generateHintSticker(
+    runId: string,
+    snapshot: EnvironmentSnapshot,
+    candidate: UnifiedSupplementCandidate,
+    trace: TraceStore,
+  ): Promise<{ asset?: Awaited<ReturnType<Chain1ImageTool["generateHintSticker"]>>; grade: GraderResult }> {
+    let correction: string | undefined;
+    let lastGrade: GraderResult = {
+      passed: false,
+      score: 0,
+      errors: ["not_attempted"],
+      warnings: [],
+    };
+    for (let attempt = 1; attempt <= this.deps.config.image.hintSticker.maxAttempts; attempt += 1) {
+      try {
+        const asset = await this.deps.imageTool.generateHintSticker({
+          runId,
+          candidate,
+          attempt,
+          ...(correction ? { correction } : {}),
+        });
+        lastGrade = gradeHintSticker(asset);
+        await trace.append({
+          runId,
+          snapshotId: snapshot.snapshotId,
+          candidateId: candidate.id,
+          timestamp: new Date().toISOString(),
+          step: "hint_sticker_generation_and_grader",
+          status: lastGrade.passed ? "completed" : "failed",
+          output: { attempt, asset, grade: lastGrade },
+        });
+        if (lastGrade.passed) return { asset, grade: lastGrade };
+        correction = `修复以下问题：${lastGrade.errors.join("；")}`;
+      } catch (error) {
+        lastGrade = {
+          passed: false,
+          score: 0,
+          errors: [error instanceof Error ? error.message : String(error)],
+          warnings: [],
+        };
+        correction = lastGrade.errors.join("；");
+        await trace.append({
+          runId,
+          snapshotId: snapshot.snapshotId,
+          candidateId: candidate.id,
+          timestamp: new Date().toISOString(),
+          step: "hint_sticker_generation_and_grader",
+          status: "failed",
+          output: { attempt },
+          error: correction,
+        });
+      }
+    }
+    return { grade: lastGrade };
+  }
+}
+
+export function chain1ReadyStatus(
+  routeFallbacks: number,
+  contentFailed: number,
+  visualFallbacks: number,
+  hintStickerFallbacks = 0,
+): "ready" | "ready_with_fallbacks" {
+  return routeFallbacks > 0 || contentFailed > 0 || visualFallbacks > 0 || hintStickerFallbacks > 0
+    ? "ready_with_fallbacks"
+    : "ready";
 }
 
 export function selectSkillCandidateIds(
   candidates: Array<{ id: string; startMs: number }>,
   decisions: Map<string, RouteDecision>,
-  maximumPerRoute: number,
 ): Set<string> {
-  const selected = new Set<string>();
-  const routes: SupplementRoute[] = ["abstract_to_intuitive", "knowledge_gap", "claim_verification"];
-  for (const route of routes) {
+  return new Set(
     candidates
-      .map((candidate) => ({ candidate, decision: decisions.get(candidate.id) }))
-      .filter(
-        (item): item is { candidate: { id: string; startMs: number }; decision: RouteDecision } =>
-          Boolean(item.decision?.isCandidate && item.decision.primaryRoute === route),
-      )
-      .sort(
-        (a, b) =>
-          (b.decision.routeScores[route] ?? b.decision.confidence) -
-            (a.decision.routeScores[route] ?? a.decision.confidence) ||
-          a.candidate.startMs - b.candidate.startMs,
-      )
-      .slice(0, maximumPerRoute)
-      .forEach((item) => selected.add(item.candidate.id));
+      .filter((candidate) => {
+        const decision = decisions.get(candidate.id);
+        return Boolean(decision?.isCandidate && decision.primaryRoute !== "discard");
+      })
+      .map((candidate) => candidate.id),
+  );
+}
+
+export function enforceRouteDecision(
+  decision: RouteDecision,
+  config: Chain1HarnessConfig,
+  candidate?: import("./domain.js").CandidateWindow,
+): RouteDecision {
+  const primaryScore = decision.routeScores[decision.primaryRoute] ?? decision.confidence;
+  const passesPrimary =
+    decision.isCandidate &&
+    decision.primaryRoute !== "discard" &&
+    decision.confidence >= config.route.minimumConfidence &&
+    primaryScore >= config.route.minimumConfidence;
+  if (!passesPrimary) {
+    return {
+      ...decision,
+      isCandidate: false,
+      primaryRoute: "discard",
+      secondaryRoute: null,
+      reason: `${decision.reason}；未达到路由最低置信度 ${config.route.minimumConfidence}`,
+    };
   }
-  return selected;
+
+  const primaryRoute = decision.primaryRoute as SupplementRoute;
+  if (candidate && !routeSupportedByEvidence(primaryRoute, decision, candidate)) {
+    return {
+      ...decision,
+      isCandidate: false,
+      primaryRoute: "discard",
+      secondaryRoute: null,
+      reason: `${decision.reason}；主路由缺少 ASR 文案证据前提`,
+    };
+  }
+
+  const secondaryScore = decision.secondaryRoute
+    ? decision.routeScores[decision.secondaryRoute]
+    : undefined;
+  const secondaryRoute =
+    config.route.allowSecondaryRoute &&
+    decision.secondaryRoute &&
+    secondaryScore !== undefined &&
+    secondaryScore >= config.route.minimumConfidence &&
+    primaryScore - secondaryScore <= config.route.ambiguityDelta &&
+    (!candidate || routeSupportedByEvidence(decision.secondaryRoute, decision, candidate))
+      ? decision.secondaryRoute
+      : null;
+  return { ...decision, secondaryRoute };
+}
+
+function routeSupportedByEvidence(
+  route: SupplementRoute,
+  decision: RouteDecision,
+  candidate: import("./domain.js").CandidateWindow,
+): boolean {
+  const evidenceText = candidate.sourceText;
+  const hasVerbatimEvidence = decision.evidence.some((item) => {
+    const value = item.trim();
+    return value.length >= 2 && evidenceText.includes(value);
+  });
+  if (route === "abstract_to_intuitive") {
+    return candidate.signals.containsNumber && candidate.signals.containsUnit;
+  }
+  if (route === "knowledge_gap") {
+    return candidate.signals.containsPotentialTerm || hasVerbatimEvidence;
+  }
+  return (
+    candidate.signals.containsStrongClaim ||
+    candidate.signals.containsCausalLanguage ||
+    hasVerbatimEvidence
+  );
+}
+
+export function candidateEvidenceForRoute(
+  candidate: import("./domain.js").CandidateWindow,
+  route: SupplementRoute,
+): import("./domain.js").CandidateWindow {
+  if (route === "abstract_to_intuitive") return candidate;
+  return {
+    ...candidate,
+    segmentIds: candidate.segmentIds.filter((id) => !id.startsWith("ocr-")),
+    ocrText: [],
+    visualContext: [],
+  };
 }
 
 function isBatchRouteClassifier(value: RouteClassifier): value is BatchRouteClassifier {
@@ -357,6 +543,7 @@ function toFinal(
   candidate: UnifiedSupplementCandidate,
   renderMode: FinalSupplement["renderMode"],
   cardImageUrl?: string,
+  hintStickerImageUrl?: string,
 ): FinalSupplement {
   return {
     id: candidate.id,
@@ -370,8 +557,16 @@ function toFinal(
     answer: candidate.content.answer,
     ...(candidate.content.subtitle ? { subtitle: candidate.content.subtitle } : {}),
     ...(candidate.content.answerLabel ? { answerLabel: candidate.content.answerLabel } : {}),
+    ...(candidate.content.cardVariant ? { cardVariant: candidate.content.cardVariant } : {}),
+    ...(candidate.content.leftColumn ? { leftColumn: candidate.content.leftColumn } : {}),
+    ...(candidate.content.rightColumn ? { rightColumn: candidate.content.rightColumn } : {}),
+    ...(candidate.content.sourceCount !== undefined ? { sourceCount: candidate.content.sourceCount } : {}),
+    ...(candidate.content.sourceAction ? { sourceAction: candidate.content.sourceAction } : {}),
     ...(candidate.content.detail !== undefined ? { detail: candidate.content.detail } : {}),
     renderMode,
+    ...(hintStickerImageUrl
+      ? { hintStickerImageUrl, hintStickerWidth: 96 as const, hintStickerHeight: 96 as const }
+      : {}),
     ...(cardImageUrl ? { cardImageUrl, cardWidth: 310, cardHeight: 180 } : {}),
     provenance: candidate.provenance,
   };

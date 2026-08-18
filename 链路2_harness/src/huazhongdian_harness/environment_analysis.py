@@ -2,20 +2,63 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
+from contextlib import contextmanager
 from dataclasses import replace
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Callable
 
 from .io_utils import write_json
+from .environment import build_evidence_environment_snapshot, provider_identity
 from .model_json import parse_with_optional_repair
-from .models import KnowledgePoint, ManifestCase, VideoContext, VideoFrame, to_jsonable
-from .normalizers import parse_knowledge_points
+from .models import (
+    CardCandidateGroup,
+    KnowledgePoint,
+    ManifestCase,
+    VideoContext,
+    VideoFrame,
+    to_jsonable,
+)
+from .normalizers import (
+    CandidateGroupAudit,
+    parse_candidate_group_audits,
+    parse_card_candidate_groups,
+    parse_knowledge_points,
+)
+from .prompts import (
+    build_candidate_groups_judge_prompt,
+    build_card_generation_prompt,
+    build_selection_prompt,
+)
 from .providers import LLMProvider
+from .source_artifact import build_source_knowledge_artifact, write_source_knowledge_artifact
+from .tasking import TaskSpec
+from .trace import TraceRecorder
 
 
 ProgressCallback = Callable[[str, float], None]
+
+_VIDEO_GUIDANCE_MARKERS = (
+    "看视频",
+    "回看",
+    "原视频",
+    "视频里",
+    "视频中",
+    "视频会",
+    "视频将",
+    "对应讲解",
+    "对应片段",
+    "继续观看",
+    "点击查看",
+)
+
+
+class _NullTrace:
+    @contextmanager
+    def tool(self, _name: str, **_kwargs: Any):
+        yield
 
 
 def analyze_environment(
@@ -40,6 +83,30 @@ def analyze_environment(
     )
     output = Path(out_dir).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
+    trace_path = output / "trace.jsonl"
+    trace_path.unlink(missing_ok=True)
+    trace = TraceRecorder(trace_path)
+    provider_name, model_name = provider_identity(provider)
+    task = TaskSpec.from_evidence_environment(
+        case,
+        environment_path=str(environment_file),
+        environment=environment,
+    )
+    snapshot = build_evidence_environment_snapshot(
+        environment=environment,
+        provider_name=provider_name,
+        model_name=model_name,
+    )
+    write_json(output / "task_spec.json", task.to_dict())
+    write_json(output / "environment_snapshot.json", snapshot)
+    trace.append({
+        "tool": "task_and_environment",
+        "status": "success",
+        "input_summary": {
+            "task_type": task.task_type,
+            "snapshot_id": snapshot["snapshot_id"],
+        },
+    })
     for obsolete in (
         "card_candidate_batches.json",
         "card_candidates.json",
@@ -50,10 +117,8 @@ def analyze_environment(
     chunks = environment["analysisChunks"]
     mapped: list[KnowledgePoint] = []
     raw_chunks: list[dict[str, Any]] = []
-    analysis_fallbacks: list[str] = []
     total_batches = sum(len(_chunk_context_batches(case, environment, chunk)) for chunk in chunks)
     batch_number = 0
-    selection_remote_enabled = True
     for chunk in chunks:
         contexts = _chunk_context_batches(case, environment, chunk)
         for subchunk_index, context in enumerate(contexts, start=1):
@@ -61,30 +126,35 @@ def analyze_environment(
                 progress("chain2", 0.05 + 0.4 * (batch_number / max(total_batches, 1)))
             error: str | None = None
             try:
-                if not selection_remote_enabled:
-                    raise RuntimeError("selection remote circuit is open")
-                raw, selection_mode = _complete_selection(provider, context)
-                parsed = parse_with_optional_repair(
-                    raw=raw,
-                    parser=parse_knowledge_points,
-                    provider=provider,
-                    expected_schema='{"knowledge_points":[...]}',
-                    stage=f"chunk:{chunk['id']}:{subchunk_index}",
-                )
+                with trace.tool(
+                    "knowledge_point_selection",
+                    input_summary={
+                        "chunk_id": chunk["id"],
+                        "subchunk_index": subchunk_index,
+                        "snapshot_id": snapshot["snapshot_id"],
+                    },
+                ):
+                    raw, selection_mode = _complete_selection(provider, context)
+                    parsed = parse_with_optional_repair(
+                        raw=raw,
+                        parser=parse_knowledge_points,
+                        provider=provider,
+                        expected_schema='{"knowledge_points":[...]}',
+                        stage=f"chunk:{chunk['id']}:{subchunk_index}",
+                    )
                 raw_output = parsed.raw
                 parsed_points = parsed.value
             except Exception as exc:
                 error = str(exc)
-                if _is_transport_error(error):
-                    selection_remote_enabled = False
-                selection_mode = "deterministic_fallback"
-                raw_output = ""
-                parsed_points = _fallback_points_from_context(context)
-                analysis_fallbacks.append(f"{chunk['id']}:{subchunk_index}:selection")
-            points = [
-                _attach_evidence(point, environment["semanticSegments"], case.duration_seconds)
-                for point in parsed_points
-            ]
+                raise RuntimeError(
+                    "chain2 knowledge point selection failed at "
+                    f"{chunk['id']}:{subchunk_index}: {error}"
+                ) from exc
+            points, rejected_count = _constrain_points_to_evidence(
+                parsed_points,
+                environment,
+                case.duration_seconds,
+            )
             mapped.extend(points)
             raw_chunks.append({
                 "chunkId": chunk["id"],
@@ -92,6 +162,7 @@ def analyze_environment(
                 "selectionMode": selection_mode,
                 "raw": raw_output,
                 **({"error": error} if error else {}),
+                "rejectedCount": rejected_count,
                 "points": to_jsonable(points),
             })
             batch_number += 1
@@ -104,31 +175,297 @@ def analyze_environment(
     ]
     if not knowledge_points:
         raise ValueError("chain2 produced no knowledge points")
+
+    qa_context = _qa_evidence_context(case, environment, knowledge_points)
+    candidate_groups, generation_batches = _generate_question_answers(
+        context=qa_context,
+        knowledge_points=knowledge_points,
+        provider=provider,
+        progress=progress,
+        batch_size=_qa_batch_size(),
+        trace=trace,
+    )
+    selected_answers, audit_batches = _audit_question_answers(
+        context=qa_context,
+        knowledge_points=knowledge_points,
+        candidate_groups=candidate_groups,
+        provider=provider,
+        progress=progress,
+        batch_size=_qa_batch_size(),
+        trace=trace,
+    )
+    approved_points = [
+        point for point in knowledge_points
+        if point.knowledge_point_id in selected_answers
+    ]
+    if not approved_points:
+        raise ValueError("chain2 quality audit approved no knowledge points")
     if progress:
         progress("chain2", 0.95)
 
     result = {
         "videoId": case.video_id,
-        "status": "ready" if not analysis_fallbacks else "ready_with_fallbacks",
-        "fallbacks": analysis_fallbacks,
+        "status": "ready",
+        "fallbacks": [],
         "knowledgePoints": [
             {
                 "id": point.knowledge_point_id,
                 "statement": point.statement,
-                "question": _point_question(point),
-                "answer": _point_answer(point),
+                "question": selected_answers[point.knowledge_point_id][0],
+                "answer": selected_answers[point.knowledge_point_id][1],
                 "startMs": round(point.start_time * 1000),
                 "endMs": round(point.end_time * 1000),
                 "taskType": point.task_type,
                 "evidenceSegmentIds": point.evidence_segment_ids,
             }
-            for point in knowledge_points
+            for point in approved_points
         ],
     }
     write_json(output / "chunk_candidates.json", raw_chunks)
+    write_json(output / "question_answer_candidate_batches.json", generation_batches)
+    write_json(output / "quality_audit.json", audit_batches)
     write_json(output / "knowledge_points.json", result["knowledgePoints"])
     write_json(output / "chain2_result.json", result)
+    source_artifact_path = output / "source-knowledge-artifact.v1.json"
+    write_source_knowledge_artifact(
+        source_artifact_path,
+        build_source_knowledge_artifact(
+            environment_path=environment_file,
+            video_id=case.video_id,
+            knowledge_points=result["knowledgePoints"],
+        ),
+    )
+    trace.append({
+        "tool": "artifact.source_knowledge",
+        "status": "success",
+        "output_path": str(source_artifact_path),
+        "input_summary": {"knowledge_point_count": len(result["knowledgePoints"])},
+    })
+    trace.append({
+        "tool": "chain2_result",
+        "status": "success",
+        "output_path": str(output / "chain2_result.json"),
+        "input_summary": {
+            "knowledge_point_count": len(knowledge_points),
+            "approved_knowledge_point_count": len(approved_points),
+            "fallback_count": 0,
+        },
+    })
     return result
+
+
+def _generate_question_answers(
+    *,
+    context: VideoContext,
+    knowledge_points: list[KnowledgePoint],
+    provider: LLMProvider,
+    progress: ProgressCallback | None,
+    batch_size: int = 4,
+    trace: TraceRecorder | None = None,
+) -> tuple[list[CardCandidateGroup], list[dict[str, Any]]]:
+    groups: list[CardCandidateGroup] = []
+    records: list[dict[str, Any]] = []
+    batches = [
+        knowledge_points[offset : offset + batch_size]
+        for offset in range(0, len(knowledge_points), batch_size)
+    ]
+    for batch_index, points in enumerate(batches, start=1):
+        if progress:
+            progress("chain2", 0.48 + 0.16 * ((batch_index - 1) / max(len(batches), 1)))
+        error: str | None = None
+        try:
+            with (trace or _NullTrace()).tool(
+                "question_answer_generation",
+                input_summary={
+                    "batch_index": batch_index,
+                    "knowledge_point_ids": [point.knowledge_point_id for point in points],
+                },
+            ):
+                prompt = build_card_generation_prompt(context, points)
+                raw = provider.complete(
+                    system_prompt=(
+                        "你是严格输出 JSON 的知识点问题答案候选生成器。"
+                        "只能依据 Harness 提供的 ASR/OCR 证据改写问题和答案；"
+                        "答案必须独立、完整、清楚，禁止任何看视频或回看引导。"
+                    ),
+                    user_prompt=prompt,
+                    temperature=0.0,
+                )
+                parsed = parse_with_optional_repair(
+                    raw=raw,
+                    parser=lambda value: parse_card_candidate_groups(
+                        value,
+                        default_video_id=context.case.video_id,
+                    ),
+                    provider=provider,
+                    expected_schema=(
+                        '{"candidate_groups":[{"knowledge_point_id":"kp_001",'
+                        '"candidates":[...]}]}'
+                    ),
+                    stage=f"question_generation:{batch_index}",
+                )
+            batch_groups = parsed.value
+            expected_ids = [point.knowledge_point_id for point in points]
+            actual_ids = [group.knowledge_point_id for group in batch_groups]
+            if actual_ids != expected_ids:
+                raise ValueError(
+                    "question candidate groups must match knowledge points in source order; "
+                    f"expected={expected_ids}, actual={actual_ids}"
+                )
+            mode = "model"
+        except Exception as exc:
+            error = str(exc)
+            raise RuntimeError(
+                f"chain2 question generation failed at batch {batch_index}: {error}"
+            ) from exc
+        groups.extend(batch_groups)
+        records.append(
+            {
+                "batchIndex": batch_index,
+                "mode": mode,
+                **({"error": error} if error else {}),
+                "groups": [_question_answer_group_record(group) for group in batch_groups],
+            }
+        )
+    return groups, records
+
+
+def _audit_question_answers(
+    *,
+    context: VideoContext,
+    knowledge_points: list[KnowledgePoint],
+    candidate_groups: list[CardCandidateGroup],
+    provider: LLMProvider,
+    progress: ProgressCallback | None,
+    batch_size: int = 4,
+    trace: TraceRecorder | None = None,
+) -> tuple[dict[str, tuple[str, str]], list[dict[str, Any]]]:
+    points_by_id = {point.knowledge_point_id: point for point in knowledge_points}
+    selected: dict[str, tuple[str, str]] = {}
+    records: list[dict[str, Any]] = []
+    batches = [
+        candidate_groups[offset : offset + batch_size]
+        for offset in range(0, len(candidate_groups), batch_size)
+    ]
+    for batch_index, groups in enumerate(batches, start=1):
+        if progress:
+            progress("chain2", 0.68 + 0.24 * ((batch_index - 1) / max(len(batches), 1)))
+        points = [points_by_id[group.knowledge_point_id] for group in groups]
+        error: str | None = None
+        try:
+            with (trace or _NullTrace()).tool(
+                "question_answer_quality_audit",
+                input_summary={
+                    "batch_index": batch_index,
+                    "knowledge_point_ids": [point.knowledge_point_id for point in points],
+                },
+            ):
+                prompt = build_candidate_groups_judge_prompt(context, points, groups)
+                raw = provider.complete(
+                    system_prompt=(
+                        "你是严格输出 JSON 的问题答案质量审核模型。"
+                        "必须依据 Harness 提供的 ASR/OCR 证据审核；"
+                        "含看视频、回看或继续观看引导的答案不得通过。"
+                    ),
+                    user_prompt=prompt,
+                    temperature=0.0,
+                )
+                parsed = parse_with_optional_repair(
+                    raw=raw,
+                    parser=parse_candidate_group_audits,
+                    provider=provider,
+                    expected_schema='{"group_audits":[{"knowledge_point_id":"kp_001",...}]}',
+                    stage=f"quality_audit:{batch_index}",
+                )
+            audits = parsed.value
+            expected_ids = [group.knowledge_point_id for group in groups]
+            actual_ids = [audit.knowledge_point_id for audit in audits]
+            if actual_ids != expected_ids:
+                raise ValueError(
+                    "quality audits must match candidate groups in source order; "
+                    f"expected={expected_ids}, actual={actual_ids}"
+                )
+            for group, audit in zip(groups, audits, strict=True):
+                candidate_ids = {candidate.card_id for candidate in group.candidates}
+                if set(audit.ranking) != candidate_ids:
+                    raise ValueError(
+                        f"quality audit candidate ids do not match {group.knowledge_point_id}"
+                    )
+            mode = "model"
+        except Exception as exc:
+            error = str(exc)
+            raise RuntimeError(
+                f"chain2 quality audit failed at batch {batch_index}: {error}"
+            ) from exc
+
+        if audits:
+            for group, audit in zip(groups, audits, strict=True):
+                point = points_by_id[group.knowledge_point_id]
+                candidates_by_id = {
+                    candidate.card_id: candidate for candidate in group.candidates
+                }
+                chosen = next(
+                    (
+                        candidates_by_id[candidate_id]
+                        for candidate_id in audit.ranking
+                        if audit.candidate_audits[candidate_id].should_keep is not False
+                        and audit.candidate_audits[candidate_id].audit_grade not in {"B", "C", "D"}
+                        and _is_standalone_answer(
+                            candidates_by_id[candidate_id].highlight_answer
+                        )
+                        and _is_grounded_answer(
+                            candidates_by_id[candidate_id].highlight_answer,
+                            point,
+                            context.source_text,
+                        )
+                    ),
+                    None,
+                )
+                if chosen is None:
+                    continue
+                else:
+                    selected[group.knowledge_point_id] = (
+                        chosen.hook_question.strip(),
+                        chosen.highlight_answer.strip(),
+                    )
+
+        records.append(
+            {
+                "batchIndex": batch_index,
+                "mode": mode,
+                **({"error": error} if error else {}),
+                "audits": [_quality_audit_record(audit) for audit in audits],
+            }
+        )
+    return selected, records
+
+
+def _question_answer_group_record(group: CardCandidateGroup) -> dict[str, Any]:
+    return {
+        "knowledgePointId": group.knowledge_point_id,
+        "candidates": [
+            {
+                "candidateId": candidate.card_id,
+                "question": candidate.hook_question,
+                "answer": candidate.highlight_answer,
+                "startMs": round(candidate.source_start_time * 1000),
+                "endMs": round(candidate.source_end_time * 1000),
+            }
+            for candidate in group.candidates
+        ],
+    }
+
+
+def _quality_audit_record(audit: CandidateGroupAudit) -> dict[str, Any]:
+    return {
+        "knowledgePointId": audit.knowledge_point_id,
+        "candidateRanking": audit.ranking,
+        "selectedCandidateId": audit.selected_candidate_id,
+        "candidateAudits": {
+            candidate_id: to_jsonable(candidate_audit)
+            for candidate_id, candidate_audit in audit.candidate_audits.items()
+        },
+    }
 
 
 def merge_knowledge_points(
@@ -176,7 +513,16 @@ def _chunk_context(case: ManifestCase, environment: dict[str, Any], chunk: dict[
         "下面的时间均为原视频绝对时间，输出 start_time/end_time 也必须使用绝对秒数。",
     ]
     for item in segments:
-        lines.append(f"[{item['startMs'] / 1000:.3f}-{item['endMs'] / 1000:.3f}] ({item['id']}) {item['text']}")
+        lines.append(
+            f"[ASR {item['startMs'] / 1000:.3f}-{item['endMs'] / 1000:.3f}] "
+            f"({item['id']}) {item['text']}"
+        )
+    for item in environment.get("ocrSegments") or []:
+        if item["endMs"] >= chunk["startMs"] and item["startMs"] <= chunk["endMs"]:
+            lines.append(
+                f"[OCR {item['startMs'] / 1000:.3f}-{item['endMs'] / 1000:.3f}] "
+                f"({item['id']}) {item['text']}"
+            )
     frames = _load_frames(environment, set(chunk.get("keyframeIds") or []), limit=4)
     return VideoContext(case=case, source_text="\n".join(lines), frames=frames)
 
@@ -186,8 +532,10 @@ def _chunk_context_batches(
     environment: dict[str, Any],
     chunk: dict[str, Any],
     *,
-    max_semantic_segments: int = 4,
+    max_semantic_segments: int | None = None,
 ) -> list[VideoContext]:
+    if max_semantic_segments is None:
+        max_semantic_segments = _max_semantic_segments_per_request()
     chunk_ids = set(chunk.get("semanticSegmentIds") or [])
     segments = [item for item in environment["semanticSegments"] if item["id"] in chunk_ids]
     if not segments:
@@ -219,6 +567,22 @@ def _chunk_context_batches(
     return contexts
 
 
+def _max_semantic_segments_per_request() -> int:
+    raw = os.getenv("CHAIN2_MAX_SEMANTIC_SEGMENTS_PER_REQUEST", "16")
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 16
+
+
+def _qa_batch_size() -> int:
+    raw = os.getenv("CHAIN2_QA_BATCH_SIZE", "16")
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 16
+
+
 def _load_frames(environment: dict[str, Any], frame_ids: set[str], *, limit: int) -> list[VideoFrame]:
     frames: list[VideoFrame] = []
     for item in environment["keyframes"]:
@@ -238,14 +602,16 @@ def _load_frames(environment: dict[str, Any], frame_ids: set[str], *, limit: int
 
 
 def _complete_selection(provider: LLMProvider, context: VideoContext) -> tuple[str, str]:
-    prompt = _build_chunk_selection_prompt(context)
-    if context.frames:
+    supports_frames = bool(getattr(provider, "supports_inline_frames", True))
+    prompt_context = context if supports_frames else replace(context, frames=[])
+    prompt = _build_chunk_selection_prompt(prompt_context)
+    if context.frames and supports_frames:
         try:
             return provider.complete_with_frames(
                 system_prompt="你是严格输出 JSON 的知识点选择器。",
                 user_prompt=prompt,
                 frames=context.frames,
-                temperature=0.4,
+                temperature=0.0,
             ), "local_keyframes"
         except Exception:
             # A slow/unsupported multimodal request must not discard the shared
@@ -254,83 +620,26 @@ def _complete_selection(provider: LLMProvider, context: VideoContext) -> tuple[s
     return provider.complete(
         system_prompt="你是严格输出 JSON 的知识点选择器。",
         user_prompt=prompt,
-        temperature=0.4,
-    ), "text_fallback" if context.frames else "timestamped_text"
+        temperature=0.0,
+    ), "text_fallback" if context.frames and supports_frames else "timestamped_text"
 
 
 def _build_chunk_selection_prompt(context: VideoContext) -> str:
-    """Compact form of the knowledge-point skill for the H5 chunked main path."""
-    return f"""
-你是「划重点」知识点选择器。逐段扫描当前分析块，只输出 JSON。
-
-选择规则：
-- 只选可出题的完整事实句，不选标题、口号、过渡句或孤立名词。
-- 必须有清晰解释价值、用户相关性和问答可行性；不凑数量，不漏掉合格点。
-- 相同机制/事实只留一条；同一讲解段的候选应合并或切成连续且不重叠的时间段。
-- start_time/end_time 必须是原视频绝对秒数，边界来自输入时间戳，不得改成分析块内相对时间。
-- task_type 只能是：原因解释型、误区纠正型、影响结果型、过程变化型、信号识别型、方法决策型、作用说明型、关系结构型、尺度反差型、对比差异型。
-- statement 必须忠于原文；画面/OCR 只是证据，不能用常识补造视频没说的结论。
-
-视频：{context.case.title}（{context.case.duration_seconds:.3f}秒）
-当前分析块的时间戳证据：
-{context.source_text}
-
-输出结构：
-{{"knowledge_points":[{{"knowledge_point_id":"kp_001","statement":"完整事实句","start_time":12.3,"end_time":35.6,"selection_scores":{{"fact_complete":1,"description_valid":1,"answer_core":1,"clear_boundary":1,"task_type_clear":1,"explanatory_value":1,"user_relevance":1,"contrast_or_misconception":1,"question_feasible":1,"answer_feasible":1,"question_tension":1,"answer_hook":1,"batch_distinctness":1,"timestamp_precise":1}},"priority":"S","task_type":"原因解释型","tension_triad":{{"common_sense":"...","counterintuitive":"...","explanation":"..."}},"question_direction":"...","answer_core":"...","answer_hook":"...","timestamp_note":"..."}}]}}
-""".strip()
+    return build_selection_prompt(context)
 
 
-def _fallback_points_from_context(context: VideoContext) -> list[KnowledgePoint]:
-    points: list[KnowledgePoint] = []
-    pattern = re.compile(r"^\[(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\]\s+\(([^)]+)\)\s+(.+)$")
-    for line in context.source_text.splitlines():
-        match = pattern.match(line.strip())
-        if not match or len(match.group(4).strip()) < 8:
-            continue
-        points.append(
-            KnowledgePoint(
-                knowledge_point_id=f"fallback-{len(points) + 1}",
-                statement=match.group(4).strip(),
-                start_time=float(match.group(1)),
-                end_time=float(match.group(2)),
-                task_type="待模型复核",
-                timestamp_note="远程选择失败，保留共享语义段边界",
-                question_direction="这段内容的关键结论是什么？",
-                answer_core=match.group(4).strip(),
-                evidence_segment_ids=[match.group(3)],
-            )
-        )
-    return points
-
-
-def _point_question(point: KnowledgePoint) -> str:
-    return point.question_direction.strip() or "这段内容的关键结论是什么？"
-
-
-def _point_answer(point: KnowledgePoint) -> str:
-    return point.answer_core.strip() or point.statement.strip()
-
-
-def _is_transport_error(message: str) -> bool:
-    normalized = message.lower()
-    return any(
-        marker in normalized
-        for marker in (
-            "timeout",
-            "timed out",
-            "read operation",
-            "connecterror",
-            "connect error",
-            "nodename nor servname",
-            "remote circuit is open",
-        )
-    )
+def _is_standalone_answer(answer: str) -> bool:
+    normalized = answer.strip()
+    return bool(normalized) and not any(
+        marker in normalized for marker in _VIDEO_GUIDANCE_MARKERS
+    ) and "?" not in normalized and "？" not in normalized
 
 
 def _attach_evidence(
     point: KnowledgePoint,
     semantic_segments: list[dict[str, Any]],
     duration_seconds: float,
+    ocr_segments: list[dict[str, Any]] | None = None,
 ) -> KnowledgePoint:
     start = min(max(point.start_time, 0), duration_seconds)
     end = min(max(point.end_time, start), duration_seconds)
@@ -339,7 +648,125 @@ def _attach_evidence(
         for item in semantic_segments
         if item["endMs"] / 1000 >= start and item["startMs"] / 1000 <= end
     ]
+    ids.extend(
+        item["id"]
+        for item in (ocr_segments or [])
+        if item["endMs"] / 1000 >= start and item["startMs"] / 1000 <= end
+    )
     return replace(point, start_time=start, end_time=end, evidence_segment_ids=ids)
+
+
+def _constrain_points_to_evidence(
+    points: list[KnowledgePoint],
+    environment: dict[str, Any],
+    duration_seconds: float,
+) -> tuple[list[KnowledgePoint], int]:
+    kept: list[KnowledgePoint] = []
+    rejected = 0
+    for point in points:
+        attached = _attach_evidence(
+            point,
+            environment.get("semanticSegments") or [],
+            duration_seconds,
+            environment.get("ocrSegments") or [],
+        )
+        evidence_text = _evidence_text_for_range(
+            environment,
+            attached.start_time,
+            attached.end_time,
+        )
+        if (
+            attached.evidence_segment_ids
+            and _is_grounded_text(attached.statement, evidence_text)
+            and _is_grounded_text(attached.answer_core or attached.statement, evidence_text)
+        ):
+            kept.append(attached)
+        else:
+            rejected += 1
+    return kept, rejected
+
+
+def _qa_evidence_context(
+    case: ManifestCase,
+    environment: dict[str, Any],
+    points: list[KnowledgePoint],
+) -> VideoContext:
+    evidence_ids = {
+        evidence_id
+        for point in points
+        for evidence_id in point.evidence_segment_ids
+    }
+    lines: list[str] = []
+    for label, key in (("ASR", "semanticSegments"), ("OCR", "ocrSegments")):
+        for item in environment.get(key) or []:
+            if item["id"] not in evidence_ids:
+                continue
+            lines.append(
+                f"[{label} {item['startMs'] / 1000:.3f}-{item['endMs'] / 1000:.3f}] "
+                f"({item['id']}) {item['text']}"
+            )
+    return VideoContext(case=case, source_text="\n".join(lines))
+
+
+def _evidence_text_for_range(
+    environment: dict[str, Any],
+    start_seconds: float,
+    end_seconds: float,
+) -> str:
+    values: list[str] = []
+    for key in ("semanticSegments", "ocrSegments"):
+        for item in environment.get(key) or []:
+            if (
+                item["endMs"] / 1000 >= start_seconds
+                and item["startMs"] / 1000 <= end_seconds
+            ):
+                values.append(str(item["text"]))
+    return "\n".join(values)
+
+
+def _is_grounded_answer(answer: str, point: KnowledgePoint, evidence_text: str) -> bool:
+    source = "\n".join((evidence_text, point.statement, point.answer_core))
+    return _is_grounded_text(answer, source)
+
+
+def _is_grounded_text(value: str, evidence_text: str) -> bool:
+    normalized_value = _normalize_text(value)
+    normalized_evidence = _normalize_text(evidence_text)
+    if not normalized_value or not normalized_evidence:
+        return False
+    if normalized_value in normalized_evidence:
+        return True
+    clauses = [
+        _normalize_text(item)
+        for item in re.split(r"[。！？!?；;，,]", value)
+        if len(_normalize_text(item)) >= 4
+    ]
+    if not clauses:
+        clauses = [normalized_value]
+    evidence_lines = [
+        _normalize_text(item)
+        for item in evidence_text.splitlines()
+        if _normalize_text(item)
+    ] or [normalized_evidence]
+    return all(
+        max(
+            max(
+                SequenceMatcher(None, clause, line).ratio(),
+                _ngram_recall(clause, line),
+            )
+            for line in evidence_lines
+        ) >= 0.42
+        for clause in clauses
+    )
+
+
+def _ngram_recall(value: str, evidence: str, *, size: int = 2) -> float:
+    if len(value) < size:
+        return 1.0 if value in evidence else 0.0
+    grams = {value[index : index + size] for index in range(len(value) - size + 1)}
+    if not grams:
+        return 0.0
+    return sum(gram in evidence for gram in grams) / len(grams)
 
 
 def _normalize_text(value: str) -> str:

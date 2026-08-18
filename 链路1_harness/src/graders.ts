@@ -1,12 +1,17 @@
 import { spawnSync } from "node:child_process";
 import type {
+  CandidateWindow,
   GeneratedCardAsset,
   GraderResult,
   SupplementRoute,
   UnifiedSupplementCandidate,
 } from "./domain.js";
+import { DEFAULT_CONFIG } from "./config.js";
 
-export function gradeContent(candidate: UnifiedSupplementCandidate): GraderResult {
+export function gradeContent(
+  candidate: UnifiedSupplementCandidate,
+  evidence?: CandidateWindow,
+): GraderResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -17,6 +22,29 @@ export function gradeContent(candidate: UnifiedSupplementCandidate): GraderResul
   if (candidate.content.answer.length > 100) warnings.push("answer_too_long");
   if (candidate.trigger.triggerAtMs < candidate.source.endMs) {
     warnings.push("trigger_before_source_end");
+  }
+
+  if (evidence) {
+    const sourceEvidence = [evidence.sourceText, ...evidence.ocrText];
+    if (!sourceEvidence.includes(candidate.source.text)) errors.push("source_text_not_in_asr_or_ocr");
+    if (
+      candidate.source.startMs !== evidence.startMs ||
+      candidate.source.endMs !== evidence.endMs
+    ) {
+      errors.push("source_time_outside_evidence_window");
+    }
+    if (
+      candidate.source.span &&
+      !sourceEvidence.some((item) => item.includes(candidate.source.span!))
+    ) {
+      errors.push("source_span_not_verbatim");
+    }
+    if (
+      candidate.route === "abstract_to_intuitive" &&
+      !(evidence.signals.containsNumber && evidence.signals.containsUnit)
+    ) {
+      errors.push("abstract_route_missing_number_or_unit_evidence");
+    }
   }
 
   if (candidate.route === "claim_verification") {
@@ -57,7 +85,10 @@ export async function gradeVisual(
   const errors: string[] = [];
   const warnings: string[] = [];
   const metadata = imageMetadata(asset.localPath);
-  if (metadata.width !== 310 || metadata.height !== 180) {
+  if (
+    metadata.width !== DEFAULT_CONFIG.image.targetWidth ||
+    metadata.height !== DEFAULT_CONFIG.image.targetHeight
+  ) {
     errors.push(`invalid_dimensions_${metadata.width ?? "?"}x${metadata.height ?? "?"}`);
   }
   if (!metadata.format) errors.push("unknown_image_format");
@@ -88,6 +119,24 @@ export async function gradeVisual(
     errors: [...errors, ...semantic.errors],
     warnings: [...warnings, ...semantic.warnings],
     ...(semantic.retryInstruction ? { retryInstruction: semantic.retryInstruction } : {}),
+  };
+}
+
+export function gradeHintSticker(asset: GeneratedCardAsset): GraderResult {
+  const errors: string[] = [];
+  const metadata = imageMetadata(asset.localPath);
+  if (
+    metadata.width !== DEFAULT_CONFIG.image.hintSticker.targetWidth ||
+    metadata.height !== DEFAULT_CONFIG.image.hintSticker.targetHeight
+  ) {
+    errors.push(`invalid_hint_sticker_dimensions_${metadata.width ?? "?"}x${metadata.height ?? "?"}`);
+  }
+  if (!metadata.format) errors.push("unknown_hint_sticker_format");
+  return {
+    passed: errors.length === 0,
+    score: errors.length === 0 ? 1 : 0,
+    errors,
+    warnings: [],
   };
 }
 

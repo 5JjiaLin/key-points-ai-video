@@ -103,6 +103,7 @@ export interface SkillRunInput {
   video: Pick<EnvironmentSnapshot, "videoId" | "title" | "description" | "durationMs">;
   candidate: CandidateWindow;
   routeDecision: RouteDecision;
+  activeRoute?: SupplementRoute;
   runtimeContext?: Record<string, unknown>;
 }
 
@@ -129,6 +130,11 @@ export interface UnifiedSupplementCandidate {
     answer: string;
     subtitle?: string;
     answerLabel?: string;
+    cardVariant?: "viewpoint_clarification" | "verification_result";
+    leftColumn?: ClarificationColumn;
+    rightColumn?: ClarificationColumn;
+    sourceCount?: number;
+    sourceAction?: string;
     detail?: unknown;
   };
   decision: {
@@ -154,6 +160,11 @@ export interface UnifiedSupplementCandidate {
   };
 }
 
+export interface ClarificationColumn {
+  title: string;
+  content: string;
+}
+
 export interface GeneratedCardAsset {
   originalUrl?: string;
   localPath: string;
@@ -176,8 +187,16 @@ export interface FinalSupplement {
   answer: string;
   subtitle?: string;
   answerLabel?: string;
+  cardVariant?: "viewpoint_clarification" | "verification_result";
+  leftColumn?: ClarificationColumn;
+  rightColumn?: ClarificationColumn;
+  sourceCount?: number;
+  sourceAction?: string;
   detail?: unknown;
   renderMode: "full_generated_image" | "verification_template" | "text_fallback";
+  hintStickerImageUrl?: string;
+  hintStickerWidth?: 96;
+  hintStickerHeight?: 96;
   cardImageUrl?: string;
   cardWidth?: 310;
   cardHeight?: 180;
@@ -213,6 +232,8 @@ export interface Chain1HarnessResult {
     contentFailed: number;
     visualPassed: number;
     visualFallbacks: number;
+    hintStickerPassed: number;
+    hintStickerFallbacks: number;
   };
   tracePath: string;
 }

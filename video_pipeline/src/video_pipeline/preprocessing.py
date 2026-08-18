@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -20,10 +21,12 @@ class PreprocessingError(RuntimeError):
 
 
 ProgressCallback = Callable[[str, float], None]
+_OCR_FRAMES_PER_ABSTRACT_SEGMENT = 3
 
 
 @dataclass(frozen=True)
 class PreprocessingConfig:
+    asr_provider: str = "faster_whisper"
     asr_model_size: str = "base"
     asr_device: str = "cpu"
     asr_compute_type: str = "int8"
@@ -33,6 +36,11 @@ class PreprocessingConfig:
     asr_word_timestamps: bool = True
     asr_max_segment_seconds: float = 8.0
     asr_max_segment_chars: int = 50
+    funasr_model: str = "paraformer-zh"
+    funasr_vad_model: str = "fsmn-vad"
+    funasr_punc_model: str = "ct-punc"
+    funasr_batch_size_seconds: int = 60
+    funasr_hotwords: str = ""
     language: str = "zh"
     analysis_chunk_seconds: float = 240.0
     analysis_chunk_overlap_seconds: float = 12.0
@@ -47,6 +55,7 @@ class PreprocessingConfig:
     @classmethod
     def from_environment(cls) -> "PreprocessingConfig":
         return cls(
+            asr_provider=os.getenv("VIDEO_ASR_PROVIDER", "faster_whisper"),
             asr_model_size=os.getenv("VIDEO_ASR_MODEL_SIZE", "base"),
             asr_device=os.getenv("VIDEO_ASR_DEVICE", "cpu"),
             asr_compute_type=os.getenv("VIDEO_ASR_COMPUTE_TYPE", "int8"),
@@ -63,6 +72,13 @@ class PreprocessingConfig:
                 os.getenv("VIDEO_ASR_MAX_SEGMENT_SECONDS", "8")
             ),
             asr_max_segment_chars=int(os.getenv("VIDEO_ASR_MAX_SEGMENT_CHARS", "50")),
+            funasr_model=os.getenv("VIDEO_FUNASR_MODEL", "paraformer-zh"),
+            funasr_vad_model=os.getenv("VIDEO_FUNASR_VAD_MODEL", "fsmn-vad"),
+            funasr_punc_model=os.getenv("VIDEO_FUNASR_PUNC_MODEL", "ct-punc"),
+            funasr_batch_size_seconds=int(
+                os.getenv("VIDEO_FUNASR_BATCH_SIZE_SECONDS", "60")
+            ),
+            funasr_hotwords=os.getenv("VIDEO_FUNASR_HOTWORDS", ""),
             language=os.getenv("VIDEO_ASR_LANGUAGE", "zh"),
             analysis_chunk_seconds=float(os.getenv("VIDEO_ANALYSIS_CHUNK_SECONDS", "240")),
             analysis_chunk_overlap_seconds=float(
@@ -82,21 +98,39 @@ class TimedTranscriber(Protocol):
     def transcribe(self, audio_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]: ...
 
 
+_WHISPER_MODEL_CACHE: dict[tuple[str, str, str], Any] = {}
+_WHISPER_MODEL_LOCK = threading.Lock()
+
+
+def _load_whisper_model(model_size: str, device: str, compute_type: str) -> Any:
+    """Return a process-wide cached WhisperModel so repeated jobs skip reloading."""
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError as exc:
+        raise PreprocessingError("faster-whisper is required for preprocessing") from exc
+    key = (model_size, device, compute_type)
+    cached = _WHISPER_MODEL_CACHE.get(key)
+    if cached is not None:
+        return cached
+    with _WHISPER_MODEL_LOCK:
+        cached = _WHISPER_MODEL_CACHE.get(key)
+        if cached is None:
+            cached = WhisperModel(model_size, device=device, compute_type=compute_type)
+            _WHISPER_MODEL_CACHE[key] = cached
+    return cached
+
+
 class FasterWhisperTranscriber:
     def __init__(self, config: PreprocessingConfig) -> None:
         self.config = config
         self._model: Any | None = None
 
     def transcribe(self, audio_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        try:
-            from faster_whisper import WhisperModel
-        except ImportError as exc:
-            raise PreprocessingError("faster-whisper is required for preprocessing") from exc
         if self._model is None:
-            self._model = WhisperModel(
+            self._model = _load_whisper_model(
                 self.config.asr_model_size,
-                device=self.config.asr_device,
-                compute_type=self.config.asr_compute_type,
+                self.config.asr_device,
+                self.config.asr_compute_type,
             )
         try:
             raw_segments, info = self._model.transcribe(
@@ -128,6 +162,96 @@ class FasterWhisperTranscriber:
             "language": getattr(info, "language", self.config.language),
             "languageProbability": getattr(info, "language_probability", None),
         }
+
+
+class FunASRTranscriber:
+    def __init__(self, config: PreprocessingConfig) -> None:
+        self.config = config
+        self._model: Any | None = None
+
+    def transcribe(self, audio_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        if self._model is None:
+            try:
+                from funasr import AutoModel
+            except ImportError as exc:
+                raise PreprocessingError("FunASR is required for the funasr ASR provider") from exc
+            try:
+                self._model = AutoModel(
+                    model=self.config.funasr_model,
+                    vad_model=self.config.funasr_vad_model,
+                    punc_model=self.config.funasr_punc_model,
+                    device=self.config.asr_device,
+                    disable_update=True,
+                    disable_pbar=True,
+                    log_level="WARNING",
+                    seed=0,
+                )
+            except Exception as exc:
+                raise PreprocessingError(
+                    f"FunASR model loading failed: {str(exc)[:300]}"
+                ) from exc
+
+        generate_options: dict[str, Any] = {
+            "input": str(audio_path),
+            "batch_size_s": self.config.funasr_batch_size_seconds,
+            "sentence_timestamp": True,
+            "output_timestamp": True,
+            "return_raw_text": True,
+        }
+        if self.config.funasr_hotwords.strip():
+            generate_options["hotword"] = self.config.funasr_hotwords.strip()
+        try:
+            results = self._model.generate(**generate_options)
+            if not isinstance(results, list) or not results or not isinstance(results[0], dict):
+                raise PreprocessingError("FunASR returned an invalid result")
+            segments = _normalize_funasr_result(
+                results[0],
+                max_seconds=self.config.asr_max_segment_seconds,
+                max_chars=self.config.asr_max_segment_chars,
+            )
+        except PreprocessingError:
+            raise
+        except Exception as exc:
+            raise PreprocessingError(f"FunASR failed: {str(exc)[:300]}") from exc
+        if not segments:
+            raise PreprocessingError("FunASR produced no timestamped text")
+        return segments, {
+            "status": "ok",
+            "engine": "funasr",
+            "model": self.config.funasr_model,
+            "vadModel": self.config.funasr_vad_model,
+            "puncModel": self.config.funasr_punc_model,
+            "timestampSource": "native",
+            "language": self.config.language,
+        }
+
+
+class FallbackTimedTranscriber:
+    def __init__(self, primary: TimedTranscriber, fallback: TimedTranscriber) -> None:
+        self.primary = primary
+        self.fallback = fallback
+
+    def transcribe(self, audio_path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        try:
+            return self.primary.transcribe(audio_path)
+        except PreprocessingError as exc:
+            segments, diagnostics = self.fallback.transcribe(audio_path)
+            return segments, {
+                **diagnostics,
+                "fallbackUsed": True,
+                "fallbackReason": str(exc)[:300],
+            }
+
+
+def create_transcriber(config: PreprocessingConfig) -> TimedTranscriber:
+    provider = config.asr_provider.strip().lower()
+    if provider == "faster_whisper":
+        return FasterWhisperTranscriber(config)
+    if provider == "funasr":
+        return FallbackTimedTranscriber(
+            FunASRTranscriber(config), FasterWhisperTranscriber(config)
+        )
+    raise PreprocessingError(f"Unsupported ASR provider: {config.asr_provider}")
 
 
 def preprocess_video(
@@ -165,7 +289,7 @@ def preprocess_video(
         audio_path = output / "audio.wav"
         _extract_audio(resolved, audio_path)
         advance("transcribing", 0.18)
-        engine = transcriber or FasterWhisperTranscriber(settings)
+        engine = transcriber or create_transcriber(settings)
         asr_segments, asr_diagnostics = engine.transcribe(audio_path)
         asr_segments = [
             {**segment, "text": to_simplified_chinese(str(segment.get("text") or ""))}
@@ -331,34 +455,53 @@ def select_ocr_timestamps_by_chunk(
 ) -> list[float]:
     if frames_per_chunk <= 0:
         return []
+    del periodic_seconds
     selected: list[float] = []
     for chunk in analysis_chunks:
         start = chunk["startMs"] / 1000
         end = chunk["endMs"] / 1000
-        periodic: list[float] = []
-        if periodic_seconds > 0:
-            timestamp = start + min(2.0, max((end - start) / 20, 0.5))
-            while timestamp < end:
-                periodic.append(timestamp)
-                timestamp += periodic_seconds
-        suspicious = [
-            (segment["startMs"] + segment["endMs"]) / 2000
+        abstract_segments = [
+            segment
             for segment in semantic_segments
             if segment["endMs"] >= chunk["startMs"]
             and segment["startMs"] <= chunk["endMs"]
-            and _needs_visual_check(segment["text"])
+            and _needs_abstract_visual_check(segment["text"])
         ]
-        scenes = [value for value in scene_timestamps if start <= value < end]
-        guard_budget = min(len(periodic), max(1, frames_per_chunk // 2))
-        chunk_selected = _dedupe_timestamps(periodic[:guard_budget], minimum_gap=2.0)
-        for timestamp in suspicious + scenes + periodic[guard_budget:]:
+        chunk_selected: list[float] = []
+        for segment in abstract_segments:
+            segment_start = max(segment["startMs"] / 1000, start)
+            segment_end = min(segment["endMs"] / 1000, end)
+            duration = max(segment_end - segment_start, 0.0)
+            if duration <= 0:
+                continue
+            midpoint = segment_start + duration / 2
+            local_scenes = sorted(
+                (
+                    value
+                    for value in scene_timestamps
+                    if segment_start <= value <= segment_end
+                ),
+                key=lambda value: abs(value - midpoint),
+            )
+            sample_points = [
+                midpoint,
+                *local_scenes,
+                segment_start + duration * 0.25,
+                segment_start + duration * 0.75,
+            ]
+            segment_selected = _dedupe_timestamps(sample_points, minimum_gap=1.0)[
+                :_OCR_FRAMES_PER_ABSTRACT_SEGMENT
+            ]
+            for timestamp in segment_selected:
+                if len(chunk_selected) >= frames_per_chunk:
+                    break
+                if any(abs(existing - timestamp) < 1.0 for existing in chunk_selected):
+                    continue
+                chunk_selected.append(round(timestamp, 3))
             if len(chunk_selected) >= frames_per_chunk:
                 break
-            if any(abs(existing - timestamp) < 2.0 for existing in chunk_selected):
-                continue
-            chunk_selected.append(round(timestamp, 3))
         for timestamp in sorted(chunk_selected):
-            if any(abs(existing - timestamp) < 2.0 for existing in selected):
+            if any(abs(existing - timestamp) < 1.0 for existing in selected):
                 continue
             selected.append(timestamp)
     return sorted(selected)
@@ -418,6 +561,16 @@ def _build_visual_evidence(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     if not shutil.which("ffmpeg"):
         return [], [], {"status": "skipped", "reason": "ffmpeg_not_found", "errors": []}
+    if not any(_needs_abstract_visual_check(item["text"]) for item in semantic_segments):
+        return [], [], {
+            "status": "skipped",
+            "reason": "no_abstract_visual_candidate",
+            "selectionPolicy": "abstract_quantity_with_intuitive_cue_v1",
+            "maxFramesPerCandidate": _OCR_FRAMES_PER_ABSTRACT_SEGMENT,
+            "selectedFrameCount": 0,
+            "extractedFrameCount": 0,
+            "errors": [],
+        }
     script = Path(__file__).with_name("vision_ocr.swift")
     ocr_engine = _detect_ocr_engine(script)
     scenes = _collect_scene_change_timestamps(
@@ -485,6 +638,8 @@ def _build_visual_evidence(
     return ocr_segments, keyframes, {
         "status": "ok" if ocr_engine else "keyframes_only",
         "engine": ocr_engine,
+        "selectionPolicy": "abstract_quantity_with_intuitive_cue_v1",
+        "maxFramesPerCandidate": _OCR_FRAMES_PER_ABSTRACT_SEGMENT,
         "selectedFrameCount": len(timestamps),
         "extractedFrameCount": len(keyframes),
         "errors": errors[:20],
@@ -589,6 +744,60 @@ def _normalize_asr_segments(
     for index, item in enumerate(output):
         item["id"] = f"asr-{index + 1:04d}"
     return output
+
+
+def _normalize_funasr_result(
+    result: dict[str, Any], *, max_seconds: float, max_chars: int
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for sentence in result.get("sentence_info") or []:
+        if not isinstance(sentence, dict):
+            continue
+        text = str(sentence.get("sentence") or sentence.get("text") or "").strip()
+        start = sentence.get("start")
+        end = sentence.get("end")
+        if not text or not isinstance(start, int | float) or not isinstance(end, int | float):
+            continue
+        start_ms = max(round(float(start)), 0)
+        end_ms = max(round(float(end)), start_ms)
+        if end_ms > start_ms:
+            output.append(
+                {"id": "", "startMs": start_ms, "endMs": end_ms, "text": text}
+            )
+
+    if not output:
+        raw_text = str(result.get("raw_text") or "").strip()
+        timestamps = result.get("timestamp") or result.get("timestamps") or []
+        tokens = raw_text.split()
+        if tokens and len(tokens) == len(timestamps):
+            timed_tokens: list[Any] = []
+            for token, timestamp in zip(tokens, timestamps):
+                if not isinstance(timestamp, (list, tuple)) or len(timestamp) < 2:
+                    continue
+                start, end = timestamp[:2]
+                if not isinstance(start, int | float) or not isinstance(end, int | float):
+                    continue
+                timed_tokens.append(
+                    _TimedToken(
+                        word=token,
+                        start=max(float(start) / 1000, 0.0),
+                        end=max(float(end) / 1000, float(start) / 1000),
+                    )
+                )
+            output = _normalize_asr_words(
+                timed_tokens, max_seconds=max_seconds, max_chars=max_chars
+            )
+
+    for index, item in enumerate(output):
+        item["id"] = f"asr-{index + 1:04d}"
+    return output
+
+
+@dataclass(frozen=True)
+class _TimedToken:
+    word: str
+    start: float
+    end: float
 
 
 def _normalize_asr_words(
@@ -840,21 +1049,17 @@ def _env_bool(name: str, default: bool) -> bool:
 
 _NUMBER_UNIT_RE = re.compile(
     r"(?:\d+(?:\.\d+)?|[一二三四五六七八九十百千万亿兆]+)\s*"
-    r"(?:%|％|℃|度|伏|V|安|A|瓦|W|米|公里|光年|秒|分钟|小时|年|倍|元|亿元|公斤|克)"
+    r"(?:%|％|℃|度|伏|V(?![A-Za-z])|安|A(?!类)|瓦|W|米|公里|光年|秒|分钟|小时|年|倍|元|万元|亿元|万亿元|万亿|亿|万|公斤|克)"
 )
-_TERM_RE = re.compile(r"(?:紊乱|受体|多巴胺|成瘾|致癌物|机制|流动性|应激|黏膜|俯冲|通货膨胀)")
-_STRONG_CLAIM_RE = re.compile(r"(?:一定|必然|绝对|完全|都是|就是不|百分之百|永远|从来不会)")
-_VISUAL_CUE_RE = re.compile(r"(?:如图|画面里|你看到|看这里|模拟出来|图中|表格|曲线|示意)")
+_INTUITIVE_EXPLANATION_RE = re.compile(
+    r"(?:什么概念|有多|相当于|约等于|差不多|接近|相近|体感|热感|冷感|换算|对比|刻度|"
+    r"平铺|叠起来|能装下|放在现实|摸起来|感觉|看起来|温度区间|"
+    r"长度|高度|大小|距离|速度|体积|重量|量级)"
+)
 _CHART_RE = re.compile(r"(?:图表|曲线|数据来源|研究|论文|报告|统计|坐标|表格)", re.I)
 _SCALE_RE = re.compile(r"(?:刻度|比例|对比|倍|大小|长度|高度|温度|速度|距离)", re.I)
 _SIMULATION_RE = re.compile(r"(?:模拟|演示|示意|过程|变化)", re.I)
 
 
-def _needs_visual_check(text: str) -> bool:
-    return bool(
-        _NUMBER_UNIT_RE.search(text)
-        or _TERM_RE.search(text)
-        or _STRONG_CLAIM_RE.search(text)
-        or _VISUAL_CUE_RE.search(text)
-        or _CHART_RE.search(text)
-    )
+def _needs_abstract_visual_check(text: str) -> bool:
+    return bool(_NUMBER_UNIT_RE.search(text) and _INTUITIVE_EXPLANATION_RE.search(text))

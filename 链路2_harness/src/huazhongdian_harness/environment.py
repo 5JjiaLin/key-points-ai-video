@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import platform
 import subprocess
 import sys
@@ -17,6 +18,63 @@ PROMPT_ASSETS = [
     "card_generation.md",
     "quality_audit.md",
 ]
+
+
+def build_evidence_environment_snapshot(
+    *,
+    environment: dict[str, Any],
+    provider_name: str,
+    model_name: str,
+) -> dict[str, Any]:
+    evidence = {
+        "schemaVersion": environment.get("schemaVersion"),
+        "video": environment.get("video"),
+        "asrSegments": environment.get("asrSegments") or [],
+        "semanticSegments": environment.get("semanticSegments") or [],
+        "ocrSegments": environment.get("ocrSegments") or [],
+        "keyframes": environment.get("keyframes") or [],
+        "analysisChunks": environment.get("analysisChunks") or [],
+    }
+    prompt_hashes = prompt_asset_hashes()
+    evidence_digest = hashlib.sha256(
+        json.dumps(
+            evidence,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    digest_input = {
+        "evidence": evidence,
+        "provider_name": provider_name,
+        "model_name": model_name,
+        "prompt_asset_hashes": prompt_hashes,
+    }
+    digest = hashlib.sha256(
+        json.dumps(
+            digest_input,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return {
+        "snapshot_id": f"chain2_snapshot_{digest[:20]}",
+        "evidence_sha256": evidence_digest,
+        "snapshot_sha256": digest,
+        "schema_version": evidence["schemaVersion"],
+        "video_id": (environment.get("video") or {}).get("id"),
+        "provider_name": provider_name,
+        "model_name": model_name,
+        "prompt_asset_hashes": prompt_hashes,
+        "evidence_counts": {
+            "asr": len(evidence["asrSegments"]),
+            "semantic": len(evidence["semanticSegments"]),
+            "ocr": len(evidence["ocrSegments"]),
+            "keyframes": len(evidence["keyframes"]),
+            "chunks": len(evidence["analysisChunks"]),
+        },
+    }
 
 
 def build_environment_snapshot(
