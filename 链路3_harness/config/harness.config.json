@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "video_limits": {
+    "min": 3,
+    "max": 10
+  },
+  "model": {
+    "temperature": 0.1,
+    "max_output_tokens": 8000,
+    "schema_repair_attempts": 1
+  },
+  "execution": {
+    "extraction_concurrency": 3,
+    "max_review_retries": 2,
+    "fail_on_high_severity_issue": true,
+    "source_artifact_mode": "prefer"
+  },
+  "cache": {
+    "source_knowledge_ttl_seconds": 2592000,
+    "topic_profile_ttl_seconds": 2592000,
+    "learning_path_ttl_seconds": 604800
+  },
+  "duration": {
+    "reading_seconds_per_node": 45,
+    "review_seconds_per_stage": 60,
+    "comparison_extra_seconds_per_alternative_source": 30,
+    "minimum_node_minutes": 1
+  },
+  "quality": {
+    "path_pass_score": 85,
+    "normalization_auto_merge_confidence": 0.85,
+    "normalization_review_confidence": 0.68
+  }
+}

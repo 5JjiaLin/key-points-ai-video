@@ -1,0 +1,1055 @@
+{
+  "video-set-assessment": {
+    "default": {
+      "theme": {
+        "theme_id": "topic_earth_001",
+        "title": "地球形成与早期演化",
+        "scope_statement": "围绕地球形成、内部热源、大气氧化与早期生命影响",
+        "domain": "earth_science",
+        "confidence": 0.94
+      },
+      "recommended_analysis_mode": "multi_creator_topic",
+      "included_videos": [
+        {
+          "video_id": "v001",
+          "role": "core",
+          "relevance_score": 0.97,
+          "reason": "直接解释地球形成"
+        },
+        {
+          "video_id": "v002",
+          "role": "core",
+          "relevance_score": 0.94,
+          "reason": "解释地球内部热源"
+        },
+        {
+          "video_id": "v003",
+          "role": "core",
+          "relevance_score": 0.93,
+          "reason": "解释大气演化及影响"
+        }
+      ],
+      "excluded_videos": [],
+      "series_hints": [],
+      "coverage_preview": {
+        "likely_overlap": true,
+        "likely_complementarity": true,
+        "possible_viewpoint_difference": false,
+        "note": "低成本预判"
+      },
+      "status": "passed",
+      "issues": []
+    }
+  },
+  "source-knowledge-extraction-dual-mode": {
+    "by_video_id": {
+      "v001": {
+        "video_id": "v001",
+        "extraction_mode": "reconstruction_base",
+        "source_knowledge_points": [
+          {
+            "source_knowledge_id": "sk_v001_001",
+            "title": "早期物质吸积",
+            "statement": "太阳系早期尘埃和岩石在引力与碰撞作用下逐步聚集成原行星",
+            "summary": "早期物质通过吸积形成原行星",
+            "knowledge_type": "process",
+            "knowledge_dimension": "process",
+            "structural_role": "core",
+            "topic": "地球形成",
+            "subtopic": "物质吸积",
+            "intrinsic_difficulty": 2,
+            "source_emphasis": 5,
+            "source_video_id": "v001",
+            "creator_id": "c001",
+            "start_ms": 10000,
+            "end_ms": 48000,
+            "supporting_spans": [],
+            "evidence_text": "尘埃和岩石在引力作用下不断碰撞聚集",
+            "evidence_segment_ids": [
+              "v1s1"
+            ],
+            "visual_evidence_ids": [],
+            "question_candidate": "地球最初是怎么聚起来的？",
+            "answer_candidate": "早期物质通过引力和碰撞逐渐吸积。",
+            "confidence": 0.95,
+            "checks": {
+              "atomicity": "passed",
+              "source_grounding": "passed",
+              "time_span": "passed",
+              "dimension": "passed"
+            }
+          },
+          {
+            "source_knowledge_id": "sk_v001_002",
+            "title": "碰撞加热",
+            "statement": "原行星形成过程中的频繁碰撞将动能转化为热量",
+            "summary": "碰撞使早期地球升温",
+            "knowledge_type": "mechanism",
+            "knowledge_dimension": "cause",
+            "structural_role": "core",
+            "topic": "地球形成",
+            "subtopic": "早期加热",
+            "intrinsic_difficulty": 2,
+            "source_emphasis": 4,
+            "source_video_id": "v001",
+            "creator_id": "c001",
+            "start_ms": 50000,
+            "end_ms": 82000,
+            "supporting_spans": [],
+            "evidence_text": "天体碰撞会把运动能量转化为热",
+            "evidence_segment_ids": [
+              "v1s1"
+            ],
+            "visual_evidence_ids": [],
+            "question_candidate": "早期地球为什么会变热？",
+            "answer_candidate": "频繁碰撞把动能转成了热量。",
+            "confidence": 0.92,
+            "checks": {
+              "atomicity": "passed",
+              "source_grounding": "passed",
+              "time_span": "passed",
+              "dimension": "passed"
+            }
+          }
+        ],
+        "status": "passed",
+        "issues": []
+      },
+      "v002": {
+        "video_id": "v002",
+        "extraction_mode": "reconstruction_base",
+        "source_knowledge_points": [
+          {
+            "source_knowledge_id": "sk_v002_001",
+            "title": "地球形成残余热",
+            "statement": "地球形成时期产生的一部分热量至今仍保存在内部",
+            "summary": "内部热量部分来自形成残余热",
+            "knowledge_type": "fact",
+            "knowledge_dimension": "cause",
+            "structural_role": "core",
+            "topic": "地球内部演化",
+            "subtopic": "内部热源",
+            "intrinsic_difficulty": 2,
+            "source_emphasis": 4,
+            "source_video_id": "v002",
+            "creator_id": "c002",
+            "start_ms": 20000,
+            "end_ms": 52000,
+            "supporting_spans": [],
+            "evidence_text": "形成地球时留下的热量并没有全部散失",
+            "evidence_segment_ids": [
+              "v2s1"
+            ],
+            "visual_evidence_ids": [],
+            "question_candidate": "地球形成时的热还在吗？",
+            "answer_candidate": "一部分仍保存在地球内部。",
+            "confidence": 0.93,
+            "checks": {
+              "atomicity": "passed",
+              "source_grounding": "passed",
+              "time_span": "passed",
+              "dimension": "passed"
+            }
+          },
+          {
+            "source_knowledge_id": "sk_v002_002",
+            "title": "放射性加热",
+            "statement": "放射性元素衰变持续为地球内部提供热量",
+            "summary": "放射性衰变是长期内部热源",
+            "knowledge_type": "mechanism",
+            "knowledge_dimension": "cause",
+            "structural_role": "core",
+            "topic": "地球内部演化",
+            "subtopic": "内部热源",
+            "intrinsic_difficulty": 2,
+            "source_emphasis": 5,
+            "source_video_id": "v002",
+            "creator_id": "c002",
+            "start_ms": 54000,
+            "end_ms": 90000,
+            "supporting_spans": [],
+            "evidence_text": "铀等放射性元素衰变时会持续释放热量",
+            "evidence_segment_ids": [
+              "v2s1"
+            ],
+            "visual_evidence_ids": [],
+            "question_candidate": "地球内部为什么还能持续发热？",
+            "answer_candidate": "放射性元素衰变会不断释放热量。",
+            "confidence": 0.96,
+            "checks": {
+              "atomicity": "passed",
+              "source_grounding": "passed",
+              "time_span": "passed",
+              "dimension": "passed"
+            }
+          }
+        ],
+        "status": "passed",
+        "issues": []
+      },
+      "v003": {
+        "video_id": "v003",
+        "extraction_mode": "reconstruction_base",
+        "source_knowledge_points": [
+          {
+            "source_knowledge_id": "sk_v003_001",
+            "title": "大氧化事件定义",
+            "statement": "大氧化事件是地球大气氧气含量在约二十四亿年前显著增加的阶段",
+            "summary": "大气氧气在约二十四亿年前明显增加",
+            "knowledge_type": "event",
+            "knowledge_dimension": "definition",
+            "structural_role": "core",
+            "topic": "大气演化",
+            "subtopic": "大氧化事件",
+            "intrinsic_difficulty": 2,
+            "source_emphasis": 5,
+            "source_video_id": "v003",
+            "creator_id": "c003",
+            "start_ms": 15000,
+            "end_ms": 44000,
+            "supporting_spans": [],
+            "evidence_text": "约二十四亿年前大气中的氧气开始显著增加",
+            "evidence_segment_ids": [
+              "v3s1"
+            ],
+            "visual_evidence_ids": [],
+            "question_candidate": "什么是大氧化事件？",
+            "answer_candidate": "大气氧气在约二十四亿年前显著增加。",
+            "confidence": 0.96,
+            "checks": {
+              "atomicity": "passed",
+              "source_grounding": "passed",
+              "time_span": "passed",
+              "dimension": "passed"
+            }
+          },
+          {
+            "source_knowledge_id": "sk_v003_002",
+            "title": "产氧生物贡献",
+            "statement": "早期产氧生物的光合作用是大气氧气逐步积累的重要来源",
+            "summary": "产氧生物推动氧气积累",
+            "knowledge_type": "mechanism",
+            "knowledge_dimension": "cause",
+            "structural_role": "core",
+            "topic": "大气演化",
+            "subtopic": "氧气来源",
+            "intrinsic_difficulty": 2,
+            "source_emphasis": 4,
+            "source_video_id": "v003",
+            "creator_id": "c003",
+            "start_ms": 46000,
+            "end_ms": 85000,
+            "supporting_spans": [],
+            "evidence_text": "早期微生物通过光合作用持续释放氧气",
+            "evidence_segment_ids": [
+              "v3s1"
+            ],
+            "visual_evidence_ids": [],
+            "question_candidate": "大气中的氧气从哪来？",
+            "answer_candidate": "早期产氧生物通过光合作用释放氧气。",
+            "confidence": 0.91,
+            "checks": {
+              "atomicity": "passed",
+              "source_grounding": "passed",
+              "time_span": "passed",
+              "dimension": "passed"
+            }
+          },
+          {
+            "source_knowledge_id": "sk_v003_003",
+            "title": "氧气改变生命环境",
+            "statement": "大气氧气增加改变了地球表面环境并影响后续生命演化",
+            "summary": "氧气增加推动环境和生命演化变化",
+            "knowledge_type": "fact",
+            "knowledge_dimension": "effect",
+            "structural_role": "core",
+            "topic": "生命与环境演化",
+            "subtopic": "氧气影响",
+            "intrinsic_difficulty": 2,
+            "source_emphasis": 4,
+            "source_video_id": "v003",
+            "creator_id": "c003",
+            "start_ms": 90000,
+            "end_ms": 145000,
+            "supporting_spans": [],
+            "evidence_text": "氧气增加改变了环境，也为后续复杂生命演化创造条件",
+            "evidence_segment_ids": [
+              "v3s1"
+            ],
+            "visual_evidence_ids": [],
+            "question_candidate": "氧气增加改变了什么？",
+            "answer_candidate": "它改变了地表环境并影响后续生命演化。",
+            "confidence": 0.9,
+            "checks": {
+              "atomicity": "passed",
+              "source_grounding": "passed",
+              "time_span": "passed",
+              "dimension": "passed"
+            }
+          }
+        ],
+        "status": "passed",
+        "issues": []
+      }
+    }
+  },
+  "cross-video-knowledge-normalization": {
+    "default": {
+      "canonical_nodes": [
+        {
+          "canonical_node_id": "cn001",
+          "canonical_title": "原行星物质吸积",
+          "canonical_statement": "太阳系早期物质通过引力和碰撞逐步聚集形成原行星",
+          "knowledge_type": "process",
+          "knowledge_dimension": "process",
+          "topic": "地球形成",
+          "subtopic": "物质吸积",
+          "intrinsic_difficulty": 2,
+          "source_knowledge_ids": [
+            "sk_v001_001"
+          ],
+          "source_video_ids": [
+            "v001"
+          ],
+          "original_expressions": [
+            "早期物质吸积"
+          ],
+          "support_strength": "single_source",
+          "merge_confidence": 0.94,
+          "canonicalization_reason": "独立形成过程"
+        },
+        {
+          "canonical_node_id": "cn002",
+          "canonical_title": "碰撞加热",
+          "canonical_statement": "原行星形成中的碰撞将动能转化为热量",
+          "knowledge_type": "mechanism",
+          "knowledge_dimension": "cause",
+          "topic": "地球形成",
+          "subtopic": "早期加热",
+          "intrinsic_difficulty": 2,
+          "source_knowledge_ids": [
+            "sk_v001_002"
+          ],
+          "source_video_ids": [
+            "v001"
+          ],
+          "original_expressions": [
+            "碰撞加热"
+          ],
+          "support_strength": "single_source",
+          "merge_confidence": 0.92,
+          "canonicalization_reason": "独立加热机制"
+        },
+        {
+          "canonical_node_id": "cn003",
+          "canonical_title": "地球形成残余热",
+          "canonical_statement": "地球形成时期产生的一部分热量仍保存在内部",
+          "knowledge_type": "fact",
+          "knowledge_dimension": "cause",
+          "topic": "地球内部演化",
+          "subtopic": "内部热源",
+          "intrinsic_difficulty": 2,
+          "source_knowledge_ids": [
+            "sk_v002_001"
+          ],
+          "source_video_ids": [
+            "v002"
+          ],
+          "original_expressions": [
+            "地球形成残余热"
+          ],
+          "support_strength": "single_source",
+          "merge_confidence": 0.93,
+          "canonicalization_reason": "独立热量来源"
+        },
+        {
+          "canonical_node_id": "cn004",
+          "canonical_title": "放射性加热",
+          "canonical_statement": "放射性元素衰变持续为地球内部提供热量",
+          "knowledge_type": "mechanism",
+          "knowledge_dimension": "cause",
+          "topic": "地球内部演化",
+          "subtopic": "内部热源",
+          "intrinsic_difficulty": 2,
+          "source_knowledge_ids": [
+            "sk_v002_002"
+          ],
+          "source_video_ids": [
+            "v002"
+          ],
+          "original_expressions": [
+            "放射性加热"
+          ],
+          "support_strength": "single_source",
+          "merge_confidence": 0.96,
+          "canonicalization_reason": "独立长期热源"
+        },
+        {
+          "canonical_node_id": "cn005",
+          "canonical_title": "大氧化事件",
+          "canonical_statement": "大氧化事件是地球大气氧气含量在约二十四亿年前显著增加的阶段",
+          "knowledge_type": "event",
+          "knowledge_dimension": "definition",
+          "topic": "大气演化",
+          "subtopic": "大氧化事件",
+          "intrinsic_difficulty": 2,
+          "source_knowledge_ids": [
+            "sk_v003_001"
+          ],
+          "source_video_ids": [
+            "v003"
+          ],
+          "original_expressions": [
+            "大氧化事件定义"
+          ],
+          "support_strength": "single_source",
+          "merge_confidence": 0.96,
+          "canonicalization_reason": "事件定义"
+        },
+        {
+          "canonical_node_id": "cn006",
+          "canonical_title": "产氧生物推动氧气积累",
+          "canonical_statement": "早期产氧生物的光合作用是大气氧气积累的重要来源",
+          "knowledge_type": "mechanism",
+          "knowledge_dimension": "cause",
+          "topic": "大气演化",
+          "subtopic": "氧气来源",
+          "intrinsic_difficulty": 2,
+          "source_knowledge_ids": [
+            "sk_v003_002"
+          ],
+          "source_video_ids": [
+            "v003"
+          ],
+          "original_expressions": [
+            "产氧生物贡献"
+          ],
+          "support_strength": "single_source",
+          "merge_confidence": 0.91,
+          "canonicalization_reason": "氧气来源机制"
+        },
+        {
+          "canonical_node_id": "cn007",
+          "canonical_title": "氧气增加影响生命演化",
+          "canonical_statement": "大气氧气增加改变地表环境并影响后续生命演化",
+          "knowledge_type": "fact",
+          "knowledge_dimension": "effect",
+          "topic": "生命与环境演化",
+          "subtopic": "氧气影响",
+          "intrinsic_difficulty": 2,
+          "source_knowledge_ids": [
+            "sk_v003_003"
+          ],
+          "source_video_ids": [
+            "v003"
+          ],
+          "original_expressions": [
+            "氧气改变生命环境"
+          ],
+          "support_strength": "single_source",
+          "merge_confidence": 0.9,
+          "canonicalization_reason": "事件影响"
+        }
+      ],
+      "unmerged_source_points": [],
+      "ambiguous_groups": [],
+      "status": "passed",
+      "issues": []
+    }
+  },
+  "knowledge-relation-source-alignment": {
+    "default": {
+      "relations": [
+        {
+          "relation_id": "rel001",
+          "source_node_id": "cn001",
+          "target_node_id": "cn002",
+          "relation": "process_step",
+          "direction": "directed",
+          "confidence": 0.9,
+          "reason": "物质吸积过程中发生碰撞并产生加热",
+          "evidence_source_knowledge_ids": [
+            "sk_v001_001",
+            "sk_v001_002"
+          ]
+        },
+        {
+          "relation_id": "rel002",
+          "source_node_id": "cn002",
+          "target_node_id": "cn003",
+          "relation": "cause",
+          "direction": "directed",
+          "confidence": 0.83,
+          "reason": "形成期碰撞加热构成残余热的来源之一",
+          "evidence_source_knowledge_ids": [
+            "sk_v001_002",
+            "sk_v002_001"
+          ]
+        },
+        {
+          "relation_id": "rel003",
+          "source_node_id": "cn003",
+          "target_node_id": "cn004",
+          "relation": "complementary",
+          "direction": "undirected",
+          "confidence": 0.94,
+          "reason": "两者是可同时成立的不同内部热源",
+          "evidence_source_knowledge_ids": [
+            "sk_v002_001",
+            "sk_v002_002"
+          ]
+        },
+        {
+          "relation_id": "rel004",
+          "source_node_id": "cn006",
+          "target_node_id": "cn005",
+          "relation": "cause",
+          "direction": "directed",
+          "confidence": 0.88,
+          "reason": "产氧生物推动氧气积累并形成大氧化阶段",
+          "evidence_source_knowledge_ids": [
+            "sk_v003_002",
+            "sk_v003_001"
+          ]
+        },
+        {
+          "relation_id": "rel005",
+          "source_node_id": "cn005",
+          "target_node_id": "cn007",
+          "relation": "cause",
+          "direction": "directed",
+          "confidence": 0.9,
+          "reason": "大气氧气增加改变环境并影响生命演化",
+          "evidence_source_knowledge_ids": [
+            "sk_v003_001",
+            "sk_v003_003"
+          ]
+        },
+        {
+          "relation_id": "rel006",
+          "source_node_id": "cn001",
+          "target_node_id": "cn005",
+          "relation": "chronological_before",
+          "direction": "directed",
+          "confidence": 0.95,
+          "reason": "地球形成早于约二十四亿年前的大氧化事件",
+          "evidence_source_knowledge_ids": [
+            "sk_v001_001",
+            "sk_v003_001"
+          ]
+        }
+      ],
+      "source_alignments": [],
+      "knowledge_gaps": [],
+      "status": "passed",
+      "issues": []
+    }
+  },
+  "research-question-recommendation": {
+    "default": {
+      "recommended_questions": [
+        {
+          "question_id": "rq001",
+          "question": "地球形成与早期演化经历了哪些关键阶段？",
+          "goal_label": "时间主线",
+          "expected_template": "timeline_path",
+          "reconstruction_strategy": {
+            "group": "chronology",
+            "sort": "chronological",
+            "filter": "core_events"
+          },
+          "reason": "当前知识包含形成过程和大氧化事件等时间节点",
+          "feasibility_score": 0.95
+        },
+        {
+          "question_id": "rq002",
+          "question": "地球内部热量来自哪些不同机制？",
+          "goal_label": "多因素解释",
+          "expected_template": "default_stage_path",
+          "reconstruction_strategy": {
+            "group": "mechanism",
+            "sort": "cause",
+            "filter": "internal_heat"
+          },
+          "reason": "当前知识包含残余热和放射性热两个互补来源",
+          "feasibility_score": 0.91
+        },
+        {
+          "question_id": "rq003",
+          "question": "地球形成、大气变化和生命演化之间有什么因果关系？",
+          "goal_label": "因果链路",
+          "expected_template": "default_stage_path",
+          "reconstruction_strategy": {
+            "group": "cause_effect",
+            "sort": "prerequisite_order",
+            "filter": "core_chain"
+          },
+          "reason": "当前节点存在多条因果和时间关系",
+          "feasibility_score": 0.9
+        }
+      ],
+      "status": "passed",
+      "issues": []
+    }
+  },
+  "research-question-parsing": {
+    "by_contains": {
+      "比较": {
+        "research_intent": {
+          "raw_query": "比较不同视频中的共同点和补充",
+          "goal": "比较地球内部热源的互补解释",
+          "knowledge_scope": [
+            "mechanism",
+            "cause"
+          ],
+          "include_topics": [
+            "地球内部演化"
+          ],
+          "exclude_topics": [],
+          "must_keep_node_ids": [],
+          "sort_strategy": "prerequisite_order",
+          "group_strategy": "creator_viewpoint",
+          "difficulty_range": null,
+          "daily_duration_minutes": null,
+          "total_days": null,
+          "max_total_minutes": null,
+          "require_comparison": true,
+          "require_gap_detection": false,
+          "preferred_template": "viewpoint_comparison",
+          "allow_required_prerequisites": true,
+          "hard_constraints": [
+            "比较不同来源"
+          ],
+          "soft_preferences": []
+        },
+        "coverage_assessment": {
+          "status": "fully_supported",
+          "supported_scope": [
+            "地球内部热源"
+          ],
+          "unsupported_scope": [],
+          "message": "当前视频覆盖两个互补热源"
+        },
+        "ambiguities": [],
+        "status": "passed",
+        "issues": []
+      }
+    },
+    "default": {
+      "research_intent": {
+        "raw_query": "将这些地球演化知识按照时间和因果顺序整理",
+        "goal": "理解地球形成到大气和生命变化的主线",
+        "knowledge_scope": [
+          "process",
+          "cause",
+          "effect",
+          "event"
+        ],
+        "include_topics": [
+          "地球形成",
+          "地球内部演化",
+          "大气演化",
+          "生命与环境演化"
+        ],
+        "exclude_topics": [],
+        "must_keep_node_ids": [],
+        "sort_strategy": "chronological",
+        "group_strategy": "stage",
+        "difficulty_range": null,
+        "daily_duration_minutes": null,
+        "total_days": null,
+        "max_total_minutes": null,
+        "require_comparison": false,
+        "require_gap_detection": false,
+        "preferred_template": "timeline_path",
+        "allow_required_prerequisites": true,
+        "hard_constraints": [
+          "按时间和因果顺序"
+        ],
+        "soft_preferences": []
+      },
+      "coverage_assessment": {
+        "status": "fully_supported",
+        "supported_scope": [
+          "地球形成与早期演化"
+        ],
+        "unsupported_scope": [],
+        "message": "当前视频能够覆盖主要时间和因果节点"
+      },
+      "ambiguities": [],
+      "status": "passed",
+      "issues": []
+    }
+  },
+  "knowledge-filtering-path-planning": {
+    "by_contains": {
+      "viewpoint_comparison": {
+        "filter_decisions": [
+          {
+            "canonical_node_id": "cn001",
+            "decision": "exclude",
+            "relevance_score": 0.2,
+            "path_priority": 0.1,
+            "reason": "不属于内部热源比较",
+            "kept_as_prerequisite": false,
+            "matched_constraints": []
+          },
+          {
+            "canonical_node_id": "cn002",
+            "decision": "lower_priority",
+            "relevance_score": 0.5,
+            "path_priority": 0.3,
+            "reason": "提供残余热形成背景",
+            "kept_as_prerequisite": true,
+            "matched_constraints": []
+          },
+          {
+            "canonical_node_id": "cn003",
+            "decision": "keep",
+            "relevance_score": 0.98,
+            "path_priority": 0.96,
+            "reason": "内部残余热来源",
+            "kept_as_prerequisite": false,
+            "matched_constraints": [
+              "地球内部演化"
+            ]
+          },
+          {
+            "canonical_node_id": "cn004",
+            "decision": "keep",
+            "relevance_score": 0.98,
+            "path_priority": 0.96,
+            "reason": "放射性长期热源",
+            "kept_as_prerequisite": false,
+            "matched_constraints": [
+              "地球内部演化"
+            ]
+          },
+          {
+            "canonical_node_id": "cn005",
+            "decision": "exclude",
+            "relevance_score": 0.1,
+            "path_priority": 0.1,
+            "reason": "不属于内部热源比较",
+            "kept_as_prerequisite": false,
+            "matched_constraints": []
+          },
+          {
+            "canonical_node_id": "cn006",
+            "decision": "exclude",
+            "relevance_score": 0.1,
+            "path_priority": 0.1,
+            "reason": "不属于内部热源比较",
+            "kept_as_prerequisite": false,
+            "matched_constraints": []
+          },
+          {
+            "canonical_node_id": "cn007",
+            "decision": "exclude",
+            "relevance_score": 0.1,
+            "path_priority": 0.1,
+            "reason": "不属于内部热源比较",
+            "kept_as_prerequisite": false,
+            "matched_constraints": []
+          }
+        ],
+        "learning_path": {
+          "path_id": "p_compare_001",
+          "title": "地球内部热量来源对比",
+          "goal": "理解残余热与放射性热如何共同维持地球内部热量",
+          "template": "viewpoint_comparison",
+          "estimated_minutes": null,
+          "coverage_note": "覆盖当前视频中的两个主要热源",
+          "stages": [
+            {
+              "stage_id": "s_compare_1",
+              "title": "两个互补热源",
+              "goal": "区分形成残余热和持续放射性加热",
+              "reason": "两者不是冲突观点，而是可同时成立的不同机制",
+              "knowledge_nodes": [
+                {
+                  "canonical_node_id": "cn003",
+                  "display_title": "形成时期留下的残余热",
+                  "learning_goal": "理解早期形成热量为何能长期保留",
+                  "reason_for_placement": "先理解形成背景",
+                  "recommended_source": {
+                    "video_id": "v002",
+                    "source_knowledge_id": "sk_v002_001",
+                    "start_ms": 20000,
+                    "end_ms": 52000,
+                    "selection_reason": "直接解释残余热"
+                  },
+                  "alternative_sources": [],
+                  "estimated_minutes": null
+                },
+                {
+                  "canonical_node_id": "cn004",
+                  "display_title": "持续产生的放射性热",
+                  "learning_goal": "理解放射性衰变如何持续供热",
+                  "reason_for_placement": "与残余热形成互补",
+                  "recommended_source": {
+                    "video_id": "v002",
+                    "source_knowledge_id": "sk_v002_002",
+                    "start_ms": 54000,
+                    "end_ms": 90000,
+                    "selection_reason": "直接解释长期热源"
+                  },
+                  "alternative_sources": [],
+                  "estimated_minutes": null
+                }
+              ]
+            }
+          ],
+          "excluded_summary": [],
+          "missing_prerequisites": [],
+          "uncovered_user_requirements": []
+        },
+        "status": "passed",
+        "issues": []
+      }
+    },
+    "default": {
+      "filter_decisions": [
+        {
+          "canonical_node_id": "cn001",
+          "decision": "keep",
+          "relevance_score": 0.98,
+          "path_priority": 0.98,
+          "reason": "地球形成主线起点",
+          "kept_as_prerequisite": false,
+          "matched_constraints": [
+            "时间主线"
+          ]
+        },
+        {
+          "canonical_node_id": "cn002",
+          "decision": "keep",
+          "relevance_score": 0.9,
+          "path_priority": 0.85,
+          "reason": "解释形成期加热",
+          "kept_as_prerequisite": false,
+          "matched_constraints": [
+            "因果"
+          ]
+        },
+        {
+          "canonical_node_id": "cn003",
+          "decision": "keep",
+          "relevance_score": 0.82,
+          "path_priority": 0.75,
+          "reason": "解释内部热量延续",
+          "kept_as_prerequisite": false,
+          "matched_constraints": [
+            "因果"
+          ]
+        },
+        {
+          "canonical_node_id": "cn004",
+          "decision": "keep",
+          "relevance_score": 0.82,
+          "path_priority": 0.75,
+          "reason": "解释持续内部热源",
+          "kept_as_prerequisite": false,
+          "matched_constraints": [
+            "因果"
+          ]
+        },
+        {
+          "canonical_node_id": "cn005",
+          "decision": "keep",
+          "relevance_score": 0.95,
+          "path_priority": 0.9,
+          "reason": "关键大气演化阶段",
+          "kept_as_prerequisite": false,
+          "matched_constraints": [
+            "时间主线"
+          ]
+        },
+        {
+          "canonical_node_id": "cn006",
+          "decision": "keep",
+          "relevance_score": 0.88,
+          "path_priority": 0.84,
+          "reason": "解释氧气积累原因",
+          "kept_as_prerequisite": false,
+          "matched_constraints": [
+            "因果"
+          ]
+        },
+        {
+          "canonical_node_id": "cn007",
+          "decision": "keep",
+          "relevance_score": 0.9,
+          "path_priority": 0.86,
+          "reason": "解释大气变化影响",
+          "kept_as_prerequisite": false,
+          "matched_constraints": [
+            "因果"
+          ]
+        }
+      ],
+      "learning_path": {
+        "path_id": "p_timeline_001",
+        "title": "地球形成与早期演化主线",
+        "goal": "理解地球从形成、内部演化到大气和生命变化的关键链路",
+        "template": "timeline_path",
+        "estimated_minutes": null,
+        "coverage_note": "覆盖当前视频中的主要阶段和因果关系",
+        "stages": [
+          {
+            "stage_id": "s001",
+            "title": "地球形成与早期加热",
+            "goal": "理解地球如何聚集形成并升温",
+            "reason": "这是后续内部和表面演化的起点",
+            "knowledge_nodes": [
+              {
+                "canonical_node_id": "cn001",
+                "display_title": "早期物质吸积形成原行星",
+                "learning_goal": "理解地球形成的物质聚集过程",
+                "reason_for_placement": "整个时间主线的起点",
+                "recommended_source": {
+                  "video_id": "v001",
+                  "source_knowledge_id": "sk_v001_001",
+                  "start_ms": 10000,
+                  "end_ms": 48000,
+                  "selection_reason": "完整解释物质吸积"
+                },
+                "alternative_sources": [],
+                "estimated_minutes": null
+              },
+              {
+                "canonical_node_id": "cn002",
+                "display_title": "频繁碰撞让早期地球升温",
+                "learning_goal": "理解形成过程中的加热机制",
+                "reason_for_placement": "紧接物质吸积过程",
+                "recommended_source": {
+                  "video_id": "v001",
+                  "source_knowledge_id": "sk_v001_002",
+                  "start_ms": 50000,
+                  "end_ms": 82000,
+                  "selection_reason": "直接解释碰撞加热"
+                },
+                "alternative_sources": [],
+                "estimated_minutes": null
+              }
+            ]
+          },
+          {
+            "stage_id": "s002",
+            "title": "地球内部热量延续",
+            "goal": "理解地球内部为何长期保持高温",
+            "reason": "连接形成期与长期内部演化",
+            "knowledge_nodes": [
+              {
+                "canonical_node_id": "cn003",
+                "display_title": "形成时期留下的残余热",
+                "learning_goal": "理解早期热量为何没有完全散失",
+                "reason_for_placement": "承接形成期加热",
+                "recommended_source": {
+                  "video_id": "v002",
+                  "source_knowledge_id": "sk_v002_001",
+                  "start_ms": 20000,
+                  "end_ms": 52000,
+                  "selection_reason": "直接解释残余热"
+                },
+                "alternative_sources": [],
+                "estimated_minutes": null
+              },
+              {
+                "canonical_node_id": "cn004",
+                "display_title": "放射性元素持续供热",
+                "learning_goal": "理解长期内部热源",
+                "reason_for_placement": "补充残余热之外的持续热源",
+                "recommended_source": {
+                  "video_id": "v002",
+                  "source_knowledge_id": "sk_v002_002",
+                  "start_ms": 54000,
+                  "end_ms": 90000,
+                  "selection_reason": "直接解释放射性加热"
+                },
+                "alternative_sources": [],
+                "estimated_minutes": null
+              }
+            ]
+          },
+          {
+            "stage_id": "s003",
+            "title": "大气氧化与生命环境变化",
+            "goal": "理解氧气积累及其后续影响",
+            "reason": "这是地球表面环境演化的关键阶段",
+            "knowledge_nodes": [
+              {
+                "canonical_node_id": "cn006",
+                "display_title": "产氧生物推动氧气积累",
+                "learning_goal": "理解大气氧气的重要来源",
+                "reason_for_placement": "先理解大氧化事件的原因",
+                "recommended_source": {
+                  "video_id": "v003",
+                  "source_knowledge_id": "sk_v003_002",
+                  "start_ms": 46000,
+                  "end_ms": 85000,
+                  "selection_reason": "解释氧气来源"
+                },
+                "alternative_sources": [],
+                "estimated_minutes": null
+              },
+              {
+                "canonical_node_id": "cn005",
+                "display_title": "大氧化事件发生",
+                "learning_goal": "理解大气氧气显著增加的关键阶段",
+                "reason_for_placement": "承接氧气积累原因",
+                "recommended_source": {
+                  "video_id": "v003",
+                  "source_knowledge_id": "sk_v003_001",
+                  "start_ms": 15000,
+                  "end_ms": 44000,
+                  "selection_reason": "清楚定义事件"
+                },
+                "alternative_sources": [],
+                "estimated_minutes": null
+              },
+              {
+                "canonical_node_id": "cn007",
+                "display_title": "氧气增加改变生命演化环境",
+                "learning_goal": "理解大气变化的后续影响",
+                "reason_for_placement": "作为事件结果",
+                "recommended_source": {
+                  "video_id": "v003",
+                  "source_knowledge_id": "sk_v003_003",
+                  "start_ms": 90000,
+                  "end_ms": 145000,
+                  "selection_reason": "解释环境和生命影响"
+                },
+                "alternative_sources": [],
+                "estimated_minutes": null
+              }
+            ]
+          }
+        ],
+        "excluded_summary": [],
+        "missing_prerequisites": [],
+        "uncovered_user_requirements": []
+      },
+      "status": "passed",
+      "issues": []
+    }
+  },
+  "learning-path-review": {
+    "default": {
+      "passed": true,
+      "score": 93,
+      "dimension_scores": {
+        "goal_alignment": 19,
+        "coverage": 14,
+        "constraint_compliance": 14,
+        "knowledge_order": 14,
+        "stage_quality": 14,
+        "source_traceability": 9,
+        "time_feasibility": 9
+      },
+      "issues": [],
+      "approved_path": {},
+      "status": "passed"
+    }
+  }
+}

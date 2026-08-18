@@ -1,0 +1,79 @@
+{
+  "package_id": "jianzhi-jingwei-chain3-skills",
+  "package_name": "见知·经纬：链路3 Skill 包",
+  "version": "1.0.0",
+  "created_at": "2026-07-22",
+  "skills": [
+    {
+      "id": "video-set-assessment",
+      "name": "视频集合准入与主题识别",
+      "version": "1.0.0",
+      "file": "01_S0_视频集合准入与主题识别_Skill_v1.md",
+      "layer": "stable"
+    },
+    {
+      "id": "source-knowledge-extraction-dual-mode",
+      "name": "来源知识点提取双模式",
+      "version": "1.0.0",
+      "file": "02_S1_来源知识点提取双模式_Skill_v1.md",
+      "layer": "stable"
+    },
+    {
+      "id": "cross-video-knowledge-normalization",
+      "name": "跨视频知识标准化",
+      "version": "1.0.0",
+      "file": "03_S2_跨视频知识标准化_Skill_v1.md",
+      "layer": "stable"
+    },
+    {
+      "id": "knowledge-relation-source-alignment",
+      "name": "知识关系与来源校准",
+      "version": "1.0.0",
+      "file": "04_S3_知识关系与来源校准_Skill_v1.md",
+      "layer": "stable"
+    },
+    {
+      "id": "research-question-recommendation",
+      "name": "研究问题推荐",
+      "version": "1.0.0",
+      "file": "05_S4_研究问题推荐_Skill_v1.md",
+      "layer": "dynamic_entry"
+    },
+    {
+      "id": "research-question-parsing",
+      "name": "研究问题解析",
+      "version": "1.0.0",
+      "file": "06_S5_研究问题解析_Skill_v1.md",
+      "layer": "dynamic"
+    },
+    {
+      "id": "knowledge-filtering-path-planning",
+      "name": "知识筛选与学习路径编排",
+      "version": "1.0.0",
+      "file": "07_S6_知识筛选与学习路径编排_Skill_v1.md",
+      "layer": "dynamic"
+    },
+    {
+      "id": "learning-path-review",
+      "name": "学习路径独立审核",
+      "version": "1.0.0",
+      "file": "08_S7_学习路径独立审核_Skill_v1.md",
+      "layer": "dynamic"
+    }
+  ],
+  "schemas": [
+    "canonical-knowledge-node.schema.json",
+    "knowledge-relation.schema.json",
+    "learning-path.schema.json",
+    "path-review-result.schema.json",
+    "research-intent.schema.json",
+    "source-alignment.schema.json",
+    "source-knowledge-point.schema.json",
+    "video-set-assessment.schema.json"
+  ],
+  "notes": [
+    "本版本只固定Skill与Schema，不包含Harness代码",
+    "链路2知识点提取通过navigation/reconstruction_base双模式复用",
+    "路径编排与路径审核必须独立调用"
+  ]
+}

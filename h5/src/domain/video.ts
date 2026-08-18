@@ -8,6 +8,11 @@ export type SupplementRenderMode =
   | 'verification_template'
   | 'text_fallback'
 
+export interface ClarificationColumn {
+  title: string
+  content: string
+}
+
 export interface UnderstandingSupplement {
   id: string
   type: SupplementType
@@ -20,7 +25,15 @@ export interface UnderstandingSupplement {
   answer: string
   helperText: string
   answerLabel?: string
+  cardVariant?: 'viewpoint_clarification' | 'verification_result'
+  leftColumn?: ClarificationColumn
+  rightColumn?: ClarificationColumn
+  sourceCount?: number
+  sourceAction?: string
   renderMode: SupplementRenderMode
+  hintStickerImageUrl?: string
+  hintStickerWidth?: number
+  hintStickerHeight?: number
   cardImageUrl?: string
   cardWidth?: number
   cardHeight?: number
@@ -53,6 +66,7 @@ export interface VideoProject {
   creator: string
   duration: number
   videoUrl: string
+  category?: string
   transcript?: TranscriptSegment[]
   knowledgePoints: VideoKnowledgePoint[]
   supplements: UnderstandingSupplement[]
@@ -64,6 +78,7 @@ export interface VideoProjectDto {
   title: string
   creator: string
   durationMs: number
+  category?: string
   videoUrl: string
   transcriptSegments: Array<{
     id: string
@@ -95,7 +110,15 @@ export interface VideoProjectDto {
     answer: string
     subtitle?: string
     answerLabel?: string
+    cardVariant?: 'viewpoint_clarification' | 'verification_result'
+    leftColumn?: ClarificationColumn
+    rightColumn?: ClarificationColumn
+    sourceCount?: number
+    sourceAction?: string
     renderMode: SupplementRenderMode
+    hintStickerImageUrl?: string
+    hintStickerWidth?: number
+    hintStickerHeight?: number
     cardImageUrl?: string
     cardWidth?: number
     cardHeight?: number
@@ -106,6 +129,11 @@ export interface VideoProjectDto {
     fallbacks: string[]
     errors: Record<string, string>
   }
+}
+
+export interface VideoShowcaseDto {
+  schemaVersion: 'video-showcase.v1'
+  items: VideoProjectDto[]
 }
 
 export interface Chain1HarnessOutput {
@@ -123,7 +151,15 @@ export interface Chain1HarnessOutput {
     answer: string
     subtitle?: string
     answerLabel?: string
+    cardVariant?: 'viewpoint_clarification' | 'verification_result'
+    leftColumn?: ClarificationColumn
+    rightColumn?: ClarificationColumn
+    sourceCount?: number
+    sourceAction?: string
     renderMode: SupplementRenderMode
+    hintStickerImageUrl?: string
+    hintStickerWidth?: number
+    hintStickerHeight?: number
     cardImageUrl?: string
     cardWidth?: number
     cardHeight?: number

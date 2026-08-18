@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TopicKnowledgeProfile",
+  "type": "object",
+  "required": [
+    "profile_id",
+    "theme",
+    "analysis_mode",
+    "source_knowledge_points",
+    "canonical_nodes",
+    "relations",
+    "source_alignments",
+    "knowledge_gaps"
+  ],
+  "properties": {
+    "profile_id": {
+      "type": "string"
+    },
+    "theme": {
+      "type": "object"
+    },
+    "analysis_mode": {
+      "enum": [
+        "single_creator_series",
+        "multi_creator_topic"
+      ]
+    },
+    "source_knowledge_points": {
+      "type": "array"
+    },
+    "canonical_nodes": {
+      "type": "array"
+    },
+    "relations": {
+      "type": "array"
+    },
+    "source_alignments": {
+      "type": "array"
+    },
+    "knowledge_gaps": {
+      "type": "array"
+    }
+  }
+}

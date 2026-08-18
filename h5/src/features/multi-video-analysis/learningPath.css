@@ -1,0 +1,359 @@
+.learning-path-page {
+  color: #f7f7fb;
+  background-color: #02070d;
+  background-image: url('/assets/multi-video/analysis-card-stars.png');
+  background-position: center top;
+  background-size: auto 430px;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.learning-path-status {
+  background: transparent;
+  filter: invert(1);
+}
+
+.learning-path-back {
+  top: 45px;
+  left: 4px;
+}
+
+.learning-path-back img {
+  filter: invert(1);
+}
+
+.learning-path-hero {
+  position: absolute;
+  top: 70px;
+  right: 18px;
+  left: 20px;
+  height: 112px;
+  background: transparent;
+}
+
+.learning-path-hero > div {
+  position: absolute;
+  z-index: 1;
+  top: 24px;
+  left: 0;
+}
+
+.learning-path-hero h1,
+.learning-path-hero p,
+.learning-path-summary h2,
+.learning-path-summary p,
+.learning-path-overview h2 {
+  margin: 0;
+}
+
+.learning-path-hero h1 {
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 34px;
+  letter-spacing: 0.01em;
+}
+
+.learning-path-hero p {
+  margin-top: 7px;
+  color: #a6adb7;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 19px;
+}
+
+.learning-path-hero > img {
+  position: absolute;
+  top: -8px;
+  right: -2px;
+  display: block;
+  width: 116px;
+  height: 116px;
+  object-fit: contain;
+}
+
+.learning-path-summary {
+  position: absolute;
+  z-index: 2;
+  top: 182px;
+  right: 16px;
+  left: 16px;
+  height: 162px;
+  overflow: hidden;
+  border: 1.5px solid #00d3e6;
+  border-radius: 14px;
+  background: #06101a;
+}
+
+.learning-path-summary-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+}
+
+.learning-path-summary-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #06101a 0%, rgb(6 16 26 / 94%) 46%, rgb(6 16 26 / 26%) 76%, rgb(6 16 26 / 8%) 100%);
+}
+
+.learning-path-summary-content {
+  position: relative;
+  z-index: 1;
+  padding: 12px 12px 10px;
+}
+
+.learning-path-summary h2 {
+  display: -webkit-box;
+  max-width: 286px;
+  min-height: 24px;
+  max-height: 48px;
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 24px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.learning-path-summary p {
+  margin-top: 3px;
+  color: #d6dbe1;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.learning-path-summary p strong {
+  color: #00d3e6;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.learning-path-metrics {
+  display: flex;
+  margin-top: 10px;
+  gap: 6px;
+}
+
+.learning-path-metrics > div {
+  display: flex;
+  width: 124px;
+  height: 49px;
+  padding: 5px 7px;
+  align-items: center;
+  border: 1px solid rgb(120 151 176 / 28%);
+  border-radius: 8px;
+  background: rgb(2 11 19 / 66%);
+}
+
+.learning-path-metrics img {
+  display: block;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  object-fit: contain;
+}
+
+.learning-path-metrics span {
+  display: flex;
+  min-width: 0;
+  margin-left: 7px;
+  flex-direction: column;
+}
+
+.learning-path-metrics small,
+.learning-path-metrics strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.learning-path-metrics small {
+  color: #a7aeb8;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 14px;
+}
+
+.learning-path-metrics strong {
+  color: #00d3e6;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.learning-path-overview {
+  position: absolute;
+  top: 361px;
+  right: 0;
+  bottom: 76px;
+  left: 0;
+}
+
+.learning-path-overview > h2 {
+  margin-left: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.learning-path-stage-list {
+  position: absolute;
+  top: 34px;
+  right: 15px;
+  bottom: 0;
+  left: 16px;
+  display: flex;
+  padding-bottom: 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 7px;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.learning-path-stage-list::-webkit-scrollbar {
+  display: none;
+}
+
+.learning-path-stage-list > button {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 82px;
+  padding: 9px 44px 9px 10px;
+  align-items: center;
+  flex: 0 0 82px;
+  border: 1.5px solid rgb(0 211 230 / 30%);
+  border-radius: 10px;
+  color: #f7f7fb;
+  background: rgb(7 17 27 / 92%);
+  text-align: left;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 150ms ease;
+}
+
+.learning-path-stage-list > button.active {
+  border-color: #00d3e6;
+  box-shadow: 0 0 14px rgb(0 211 230 / 10%);
+}
+
+.learning-path-stage-list > button:active {
+  transform: scale(1.006);
+}
+
+.learning-path-stage-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.learning-path-stage-copy strong,
+.learning-path-stage-copy small,
+.learning-path-stage-copy > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.learning-path-stage-copy strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.learning-path-stage-copy small {
+  color: #a8afb9;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 15px;
+}
+
+.learning-path-stage-copy > span {
+  color: #a8afb9;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 17px;
+}
+
+.learning-path-stage-progress {
+  position: absolute;
+  top: 9px;
+  right: 30px;
+  min-width: 46px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid #00d3e6;
+  border-radius: 11px;
+  color: #00d3e6;
+  background: rgb(2 7 13 / 76%);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
+}
+
+.learning-path-stage-list > button > img {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 15px;
+  height: 15px;
+  opacity: 0.7;
+  filter: invert(1);
+  transform: translateY(-50%);
+}
+
+.learning-path-footer {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 76px;
+  padding: 10px 16px 14px;
+  background: linear-gradient(180deg, rgb(2 7 13 / 0%), #02070d 26%);
+}
+
+.learning-path-footer button {
+  width: 100%;
+  height: 52px;
+  padding: 0;
+  border: 1px solid rgb(84 255 245 / 32%);
+  border-radius: 26px;
+  color: #031112;
+  background: linear-gradient(90deg, #17e6df, #11bab8);
+  box-shadow: 0 0 16px rgb(0 255 229 / 25%);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 22px;
+  transition: transform 150ms ease;
+}
+
+.learning-path-footer button:active {
+  transform: scale(1.01);
+}
+
+@media (max-width: 359px) {
+  .learning-path-hero h1 { font-size: 22px; }
+  .learning-path-hero > img { width: 104px; height: 104px; }
+  .learning-path-metrics > div { width: 116px; }
+  .learning-path-stage-copy strong { font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learning-path-page,
+  .learning-path-stage-list > button,
+  .learning-path-footer button {
+    animation: none;
+    transition: none;
+  }
+}

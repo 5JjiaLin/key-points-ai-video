@@ -1,17 +1,21 @@
 [Unit]
 Description=Huazhongdian video analysis backend
-After=network-online.target
-Wants=network-online.target
+After=network-online.target huazhongdian-chain3.service
+Wants=network-online.target huazhongdian-chain3.service
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/huazhongdian/app
 EnvironmentFile=/etc/huazhongdian.env
 Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONPATH=/opt/huazhongdian/app/backend:/opt/huazhongdian/app/video_pipeline/src:/opt/huazhongdian/app/链路2_harness/src
+Environment=PATH=/opt/huazhongdian/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PYTHONPATH=/opt/huazhongdian/app/backend:/opt/huazhongdian/app/video_analysis_harness/src:/opt/huazhongdian/app/video_pipeline/src:/opt/huazhongdian/app/链路2_harness/src
 Environment=HF_HOME=/opt/huazhongdian/huggingface
 Environment=HF_HUB_OFFLINE=1
 Environment=BACKEND_DATA_DIR=/var/lib/huazhongdian/jobs
+Environment=BACKEND_SHOWCASE_FILE=/var/lib/huazhongdian/showcase.json
+Environment=BACKEND_KNOWLEDGE_POOL_FILE=/var/lib/huazhongdian/knowledge-pool.json
+Environment=BACKEND_CHAIN3_URL=http://127.0.0.1:8787
 ExecStart=/opt/huazhongdian/venv/bin/python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5

@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResearchIntent",
+  "type": "object",
+  "required": [
+    "raw_query",
+    "goal",
+    "knowledge_scope",
+    "include_topics",
+    "exclude_topics",
+    "sort_strategy",
+    "group_strategy",
+    "require_comparison",
+    "require_gap_detection",
+    "preferred_template",
+    "allow_required_prerequisites",
+    "hard_constraints",
+    "soft_preferences"
+  ],
+  "properties": {
+    "raw_query": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "knowledge_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exclude_topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "must_keep_node_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sort_strategy": {
+      "enum": [
+        "source_order",
+        "easy_to_hard",
+        "hard_to_easy",
+        "chronological",
+        "frequency_desc",
+        "importance_desc",
+        "prerequisite_order",
+        "custom"
+      ]
+    },
+    "group_strategy": {
+      "enum": [
+        "none",
+        "topic",
+        "subtopic",
+        "scenario",
+        "function",
+        "chapter",
+        "stage",
+        "creator_viewpoint",
+        "function_then_difficulty"
+      ]
+    },
+    "difficulty_range": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "daily_duration_minutes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "total_days": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "max_total_minutes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "require_comparison": {
+      "type": "boolean"
+    },
+    "require_gap_detection": {
+      "type": "boolean"
+    },
+    "preferred_template": {
+      "enum": [
+        "timeline_path",
+        "difficulty_path",
+        "scenario_path",
+        "chapter_path",
+        "viewpoint_comparison",
+        "time_plan",
+        "default_stage_path"
+      ]
+    },
+    "allow_required_prerequisites": {
+      "type": "boolean"
+    },
+    "hard_constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "soft_preferences": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

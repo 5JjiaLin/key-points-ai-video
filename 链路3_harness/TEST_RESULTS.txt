@@ -1,0 +1,22 @@
+见知·经纬 链路3 Harness v1
+测试日期：2026-07-22
+
+npm test：通过
+- 测试数：6
+- 通过：6
+- 失败：0
+
+覆盖：
+1. JSON Schema 子集校验
+2. prerequisite 环路检测
+3. 路径前置顺序检查
+4. S0-S7 端到端运行
+5. 更换研究问题复用稳定知识层
+6. 无研究问题时输出推荐问题并暂停
+
+Demo：通过
+- status: completed
+- outcome: learning_path_ready
+- template: timeline_path
+- estimated_minutes: 17
+- stages: 3
