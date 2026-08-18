@@ -13,37 +13,39 @@ export interface ArbitrationResult {
 function overlaps(
   a: UnifiedSupplementCandidate,
   b: UnifiedSupplementCandidate,
-  windowMs: number,
 ): boolean {
   return (
-    a.source.startMs <= b.source.endMs + windowMs &&
-    b.source.startMs <= a.source.endMs + windowMs
+    a.source.startMs < b.source.endMs &&
+    b.source.startMs < a.source.endMs
   );
 }
 
 export function arbitrateCandidates(
   candidates: UnifiedSupplementCandidate[],
-  config: Chain1HarnessConfig,
+  _config: Chain1HarnessConfig,
 ): ArbitrationResult {
   const viable = candidates
-    .filter((item) => item.decision.displayMode !== "suppressed")
+    .filter((item) => item.decision.displayMode === "auto_prompt")
     .sort((a, b) => b.decision.globalPriority - a.decision.globalPriority);
   const selected: UnifiedSupplementCandidate[] = [];
   const suppressed: SuppressedCandidate[] = candidates
-    .filter((item) => item.decision.displayMode === "suppressed")
+    .filter((item) => item.decision.displayMode !== "auto_prompt")
     .map((item) => ({
       id: item.id,
       route: item.route,
       sourceText: item.source.text,
       startMs: item.source.startMs,
       endMs: item.source.endMs,
-      reason: item.decision.reasons.join("；") || "Skill判定抑制",
+      reason:
+        item.decision.displayMode === "pending_review"
+          ? "等待人工复核"
+          : item.decision.displayMode === "list_only"
+            ? "链路1无列表入口，仅展示自动轻提示"
+            : item.decision.reasons.join("；") || "Skill判定抑制",
     }));
 
   for (const candidate of viable) {
-    const conflict = selected.find((item) =>
-      overlaps(item, candidate, config.arbitration.overlapWindowMs),
-    );
+    const conflict = selected.find((item) => overlaps(item, candidate));
     if (conflict) {
       suppressed.push({
         id: candidate.id,
@@ -59,26 +61,7 @@ export function arbitrateCandidates(
   }
 
   selected.sort((a, b) => a.trigger.triggerAtMs - b.trigger.triggerAtMs);
-  const scheduled: UnifiedSupplementCandidate[] = [];
-  for (const candidate of selected) {
-    const recent = scheduled.filter(
-      (item) => candidate.trigger.triggerAtMs - item.trigger.triggerAtMs < 60000,
-    );
-    const last = scheduled.at(-1);
-    const tooClose =
-      last &&
-      candidate.trigger.triggerAtMs - last.trigger.triggerAtMs <
-        config.arbitration.minimumPromptIntervalMs;
-    const tooMany = recent.length >= config.arbitration.maximumPromptsPerMinute;
-
-    if (candidate.decision.displayMode === "auto_prompt" && (tooClose || tooMany)) {
-      candidate.decision.displayMode = "list_only";
-      candidate.decision.reasons.push(tooClose ? "提示间隔过近，降级为列表" : "每分钟提示过多，降级为列表");
-    }
-    scheduled.push(candidate);
-  }
-
-  return { selected: scheduled, suppressed };
+  return { selected, suppressed };
 }
 
 export function countFallbacks(result: Chain1HarnessResult): number {

@@ -17,8 +17,20 @@ const chain1: Chain1HarnessOutput = {
       triggerAtMs: 17500,
       displayMode: 'auto_prompt',
       question: '冰水一定都不健康吗？',
-      answer: '不能一概而论，需要结合人群、饮用量和身体状态判断。',
-      answerLabel: '表达过于绝对',
+      answer: '研究更多提示短时胃动力与个体反应差异，不能只用“健康或不健康”概括。',
+      subtitle: '换个角度看',
+      answerLabel: '需分情况',
+      cardVariant: 'viewpoint_clarification',
+      leftColumn: {
+        title: '多数情况',
+        content: '健康人饮用冷水后，主要观察到短时胃动力变化。',
+      },
+      rightColumn: {
+        title: '需要注意',
+        content: '胃肠敏感人群，可能更容易出现腹痛等短暂不适。',
+      },
+      sourceCount: 2,
+      sourceAction: '查看依据',
       renderMode: 'verification_template',
     },
     {

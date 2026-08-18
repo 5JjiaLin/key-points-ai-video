@@ -1,0 +1,358 @@
+.knowledge-complete-page {
+  color: #f7fbff;
+  background-color: #02070d;
+  background-image:
+    radial-gradient(circle at 50% 25%, rgb(91 62 215 / 18%), transparent 34%),
+    linear-gradient(180deg, rgb(2 7 13 / 10%), rgb(2 7 13 / 94%)),
+    url('/assets/multi-video/analysis-card-stars.png');
+  background-position: center, center, center top;
+  background-size: auto, auto, auto 430px;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.knowledge-complete-status {
+  background: transparent;
+  filter: invert(1);
+}
+
+.knowledge-complete-back {
+  top: 47px;
+  left: 2px;
+}
+
+.knowledge-complete-back img {
+  filter: invert(1);
+}
+
+.knowledge-complete-content {
+  position: absolute;
+  inset: 0;
+}
+
+.knowledge-complete-badge-stage {
+  position: absolute;
+  top: 79px;
+  left: 50%;
+  width: 279px;
+  height: 279px;
+  transform: translateX(-50%);
+  perspective: 900px;
+}
+
+.knowledge-complete-badge-halo {
+  position: absolute;
+  inset: 44px 40px 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(130 91 255 / 40%), rgb(88 61 214 / 8%) 56%, transparent 72%);
+  filter: blur(12px);
+  opacity: 0;
+  animation: knowledge-complete-halo 820ms 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.knowledge-complete-illustration {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 58%;
+  filter: drop-shadow(0 18px 34px rgb(79 47 210 / 24%));
+  will-change: transform, opacity, filter;
+  animation: knowledge-complete-badge-enter 820ms 120ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.knowledge-complete-message {
+  position: absolute;
+  top: 332px;
+  right: 16px;
+  left: 16px;
+  text-align: center;
+}
+
+.knowledge-complete-message h1,
+.knowledge-complete-message p,
+.knowledge-complete-rewards h2,
+.knowledge-complete-reward h3 {
+  margin: 0;
+}
+
+.knowledge-complete-message h1 {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 34px;
+}
+
+.knowledge-complete-message p {
+  margin-top: 2px;
+  color: #98a8b8;
+  font-size: 16px;
+  line-height: 23px;
+}
+
+.knowledge-complete-progress-copy {
+  position: absolute;
+  top: 397px;
+  right: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8fa0b4;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0;
+  transform: translateY(5px);
+  animation: knowledge-complete-copy-enter 420ms 480ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.knowledge-complete-progress-copy strong {
+  min-width: 46px;
+  height: 22px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid rgb(137 105 255 / 48%);
+  border-radius: 999px;
+  color: #b7a7ff;
+  background: rgb(106 76 247 / 16%);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 0 14px rgb(106 76 247 / 12%);
+}
+
+.knowledge-complete-progress {
+  position: absolute;
+  top: 424px;
+  right: 15px;
+  left: 16px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(106 76 247 / 22%);
+  box-shadow: inset 0 0 0 1px rgb(160 140 255 / 6%);
+}
+
+.knowledge-complete-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6a4cf7, #8a6cff);
+  box-shadow: 0 0 12px rgb(106 76 247 / 52%);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.knowledge-complete-rewards {
+  position: absolute;
+  top: 518px;
+  right: 15px;
+  left: 16px;
+}
+
+.knowledge-complete-rewards > h2 {
+  height: 23px;
+  color: #f7fbff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 23px;
+  text-align: center;
+}
+
+.knowledge-complete-reward-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.knowledge-complete-reward {
+  height: 107px;
+  overflow: hidden;
+  border: 3px solid currentColor;
+  border-radius: 12px;
+  box-sizing: border-box;
+  background: currentColor;
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  will-change: transform, opacity;
+  animation: knowledge-complete-reward-settle 520ms var(--reward-delay) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.knowledge-complete-reward.points {
+  color: #6a4cf7;
+}
+
+.knowledge-complete-reward.duration {
+  color: #3c97fa;
+}
+
+.knowledge-complete-reward.accuracy {
+  color: #57c258;
+}
+
+.knowledge-complete-reward h3 {
+  height: 30px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 30px;
+  text-align: center;
+}
+
+.knowledge-complete-reward > div {
+  display: flex;
+  height: 71px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 8px 7px 7px;
+  background: #07121e;
+}
+
+.knowledge-complete-reward img {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+
+.knowledge-complete-reward strong {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 25px;
+  font-variant-numeric: tabular-nums;
+}
+
+.knowledge-complete-actions {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  height: 112px;
+  padding: 11px 15px 11px 16px;
+  gap: 10px;
+  box-sizing: border-box;
+  background: #000;
+}
+
+.knowledge-complete-actions button {
+  width: 100%;
+  height: 40px;
+  color: #fff;
+  border: 1px solid #6a4cf7;
+  border-radius: 12px;
+  background: #6a4cf7;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.knowledge-complete-actions button:last-child {
+  color: #a795ff;
+  background: #050910;
+}
+
+.knowledge-complete-actions button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@keyframes knowledge-complete-badge-enter {
+  0% {
+    opacity: 0;
+    filter: blur(8px) drop-shadow(0 0 0 rgb(79 47 210 / 0%));
+    transform: translateY(12px) scale(0.28) rotateX(8deg);
+  }
+
+  68% {
+    opacity: 1;
+    filter: blur(0) drop-shadow(0 24px 40px rgb(92 55 222 / 34%));
+    transform: translateY(-3px) scale(1.045) rotateX(0deg);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0) drop-shadow(0 18px 34px rgb(79 47 210 / 24%));
+    transform: translateY(0) scale(1) rotateX(0deg);
+  }
+}
+
+@keyframes knowledge-complete-halo {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  62% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+
+  100% {
+    opacity: 0.52;
+    transform: scale(1);
+  }
+}
+
+@keyframes knowledge-complete-copy-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes knowledge-complete-reward-settle {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-height: 760px) {
+  .knowledge-complete-badge-stage {
+    top: 65px;
+    width: 250px;
+    height: 250px;
+  }
+
+  .knowledge-complete-message {
+    top: 305px;
+  }
+
+  .knowledge-complete-progress-copy {
+    top: 370px;
+  }
+
+  .knowledge-complete-progress {
+    top: 397px;
+  }
+
+  .knowledge-complete-rewards {
+    top: 485px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .knowledge-complete-badge-halo,
+  .knowledge-complete-illustration,
+  .knowledge-complete-progress-copy,
+  .knowledge-complete-reward {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

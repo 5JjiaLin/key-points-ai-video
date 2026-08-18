@@ -162,7 +162,7 @@ class NormalizerEvaluatorTests(unittest.TestCase):
             '{"knowledge_points":[{"knowledge_point_id":"kp1","statement":"甜饮里的果糖可能促进尿酸生成并让尿酸升高。","start_time":72,"end_time":95,"selection_scores":{"clarity":1},"priority":"S","task_type":"原因解释型","timestamp_note":"从正式解释果糖代谢开始，前面只是引入甜饮话题。"}]}'
         )
         card = parse_recovery_cards(
-            '{"cards":[{"video_id":"v1","card_id":"c1","card_type":"recovery","knowledge_point_id":"kp1","hook_question":"为什么甜饮也升尿酸？","highlight_answer":"会，果糖代谢可能推高尿酸，咋一步步变高的？看视频。","source_start_time":72,"source_end_time":95,"video_entry_text":"想知道果糖怎么影响尿酸？","video_cta_text":"看原视频 18 秒解释","theme":"health","difficulty_level":"easy","risk_level":"medium","question_style":"原因解释型","curiosity_score":0.91,"is_suitable_for_card":true}]}',
+            '{"cards":[{"video_id":"v1","card_id":"c1","card_type":"recovery","knowledge_point_id":"kp1","hook_question":"为什么甜饮也升尿酸？","highlight_answer":"会。果糖代谢可能促进尿酸生成，长期大量摄入含糖饮料更容易使尿酸升高。","source_start_time":72,"source_end_time":95,"video_entry_text":"知识点来源","video_cta_text":"对应时间段","theme":"health","difficulty_level":"easy","risk_level":"medium","question_style":"原因解释型","curiosity_score":0.91,"is_suitable_for_card":true}]}',
             default_video_id="v1",
         )[0]
         result = rule_check_card(card, kps)
@@ -220,7 +220,7 @@ class NormalizerEvaluatorTests(unittest.TestCase):
         )[0]
         self.assertFalse(any("hook core length" in reason for reason in rule_check_card(anchored, kps).failure_reasons))
 
-    def test_answer_rewatch_suffix_must_connect_naturally(self) -> None:
+    def test_answer_must_not_contain_video_guidance(self) -> None:
         kps = parse_knowledge_points(
             '{"knowledge_points":[{"knowledge_point_id":"kp1","statement":"甜饮里的果糖可能促进尿酸生成并让尿酸升高。","start_time":72,"end_time":95,"selection_scores":{"clarity":1},"priority":"S","task_type":"原因解释型","timestamp_note":"从正式解释果糖代谢开始，前面只是引入甜饮话题。"}]}'
         )
@@ -228,13 +228,20 @@ class NormalizerEvaluatorTests(unittest.TestCase):
             '{"cards":[{"video_id":"v1","card_id":"c1","card_type":"recovery","knowledge_point_id":"kp1","hook_question":"为什么甜饮也升尿酸？","highlight_answer":"会，果糖代谢可能推高尿酸，代谢路径视频里有详解。","source_start_time":72,"source_end_time":95,"video_entry_text":"想知道果糖怎么影响尿酸？","video_cta_text":"看原视频 18 秒解释","theme":"health","difficulty_level":"easy","risk_level":"medium","question_style":"原因解释型","curiosity_score":0.91,"is_suitable_for_card":true}]}',
             default_video_id="v1",
         )[0]
-        self.assertIn("answer suffix is not naturally connected", hard_rule_failures(rule_check_card(bad_card, kps)))
+        self.assertIn("answer contains video guidance", hard_rule_failures(rule_check_card(bad_card, kps)))
 
         good_card = parse_recovery_cards(
             '{"cards":[{"video_id":"v1","card_id":"c2","card_type":"recovery","knowledge_point_id":"kp1","hook_question":"为什么甜饮也升尿酸？","highlight_answer":"会，果糖代谢可能推高尿酸，咋一步步变高的？看视频。","source_start_time":72,"source_end_time":95,"video_entry_text":"想知道果糖怎么影响尿酸？","video_cta_text":"看原视频 18 秒解释","theme":"health","difficulty_level":"easy","risk_level":"medium","question_style":"原因解释型","curiosity_score":0.91,"is_suitable_for_card":true}]}',
             default_video_id="v1",
         )[0]
-        self.assertNotIn("answer suffix is not naturally connected", rule_check_card(good_card, kps).failure_reasons)
+        self.assertIn(
+            "answer contains video guidance",
+            hard_rule_failures(rule_check_card(good_card, kps)),
+        )
+        self.assertIn(
+            "answer introduces a new question",
+            hard_rule_failures(rule_check_card(good_card, kps)),
+        )
 
     def test_complete_answer_without_mechanical_suffix_is_allowed(self) -> None:
         kps = parse_knowledge_points(
@@ -253,7 +260,7 @@ class NormalizerEvaluatorTests(unittest.TestCase):
             default_video_id="v1",
         )[0]
         self.assertIn(
-            "answer relies on generic replay wording",
+            "answer contains video guidance",
             hard_rule_failures(rule_check_card(fake_hook, kps)),
         )
 

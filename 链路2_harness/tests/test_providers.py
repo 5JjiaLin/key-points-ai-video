@@ -7,10 +7,48 @@ from pathlib import Path
 from unittest.mock import patch
 
 from huazhongdian_harness.models import VideoFrame
-from huazhongdian_harness.providers import DoubaoProvider
+from huazhongdian_harness.providers import AgnesProvider, DoubaoProvider, provider_from_name
 
 
 class ProviderTests(unittest.TestCase):
+    def test_agnes_provider_streams_chat_completion(self) -> None:
+        captured: dict = {}
+
+        class FakeResponse:
+            status_code = 200
+            text = ""
+
+            def __enter__(self) -> "FakeResponse":
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+            def iter_lines(self) -> list[str]:
+                return [
+                    'data: {"choices":[{"delta":{"content":"{\\"ok\\":"}}]}',
+                    'data: {"choices":[{"delta":{"content":"true}"}}]}',
+                    "data: [DONE]",
+                ]
+
+        def fake_stream(method: str, endpoint: str, **kwargs: object) -> FakeResponse:
+            captured.update({"method": method, "endpoint": endpoint, **kwargs})
+            return FakeResponse()
+
+        with patch("httpx.stream", side_effect=fake_stream):
+            content = AgnesProvider(api_key="agnes-test-key", model="agnes-2.0-flash").complete(
+                system_prompt="system",
+                user_prompt="user",
+                temperature=0,
+            )
+
+        self.assertEqual(content, '{"ok":true}')
+        self.assertEqual(captured["method"], "POST")
+        self.assertEqual(captured["json"]["model"], "agnes-2.0-flash")
+        self.assertTrue(captured["json"]["stream"])
+        self.assertEqual(captured["headers"]["Authorization"], "Bearer agnes-test-key")
+        self.assertIsInstance(provider_from_name("agnes"), AgnesProvider)
+
     def test_doubao_provider_accepts_ark_env_aliases(self) -> None:
         captured: dict = {}
 

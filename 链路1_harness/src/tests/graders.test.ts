@@ -30,7 +30,34 @@ test("visual routes require a full-card prompt", () => {
   assert.equal(gradeContent(item).passed, false);
 });
 
-test("claim verification never calls image generation", () => {
+test("claim verification never requests a full-card image", () => {
   const item = base("claim_verification");
   assert.equal(gradeContent(item).passed, true);
+});
+
+test("content grader rejects output not anchored to the ASR/OCR evidence window", () => {
+  const item = base("claim_verification");
+  item.source.text = "模型自己补出的原话";
+  const result = gradeContent(item, {
+    id: "candidate",
+    videoId: "video",
+    sourceText: "视频真实文案",
+    startMs: 0,
+    endMs: 1000,
+    segmentIds: ["s"],
+    contextBefore: "",
+    contextAfter: "",
+    ocrText: ["画面 OCR"],
+    visualContext: [],
+    signals: {
+      containsNumber: false,
+      containsUnit: false,
+      containsPotentialTerm: false,
+      containsStrongClaim: true,
+      containsCausalLanguage: false,
+      containsVisualCue: false,
+    },
+  });
+  assert.equal(result.passed, false);
+  assert.ok(result.errors.includes("source_text_not_in_asr_or_ocr"));
 });

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { VideoEnvironmentInput } from "../domain.js";
 import { assertVideoEnvironmentInput, normalizeVideoEnvironmentInput } from "../environment-file.js";
+import { freezeEnvironment } from "../environment.js";
+import { DEFAULT_CONFIG } from "../config.js";
 
 function validEnvironment(): Record<string, unknown> {
   return {
@@ -70,4 +72,11 @@ test("normalizes VideoEnvironmentV1 and preserves local visual evidence", () => 
   const environment = normalized as VideoEnvironmentInput;
   assert.equal(environment.visualContext[0]?.imagePath, "/frames/1.jpg");
   assert.deepEqual(environment.visualContext[0]?.evidenceKinds, ["scale"]);
+});
+
+test("same evidence and versions produce the same environment snapshot id", () => {
+  const environment = validEnvironment() as unknown as VideoEnvironmentInput;
+  const first = freezeEnvironment(environment, DEFAULT_CONFIG, { router: "model-v1" });
+  const second = freezeEnvironment(environment, DEFAULT_CONFIG, { router: "model-v1" });
+  assert.equal(first.snapshotId, second.snapshotId);
 });

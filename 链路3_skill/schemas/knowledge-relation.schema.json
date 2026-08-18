@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KnowledgeRelation",
+  "type": "object",
+  "required": [
+    "relation_id",
+    "source_node_id",
+    "target_node_id",
+    "relation",
+    "direction",
+    "confidence",
+    "reason"
+  ],
+  "properties": {
+    "relation_id": {
+      "type": "string"
+    },
+    "source_node_id": {
+      "type": "string"
+    },
+    "target_node_id": {
+      "type": "string"
+    },
+    "relation": {
+      "enum": [
+        "prerequisite",
+        "advanced",
+        "parallel",
+        "example",
+        "cause",
+        "result",
+        "process_step",
+        "chronological_before",
+        "chronological_after",
+        "similar",
+        "complementary"
+      ]
+    },
+    "direction": {
+      "enum": [
+        "directed",
+        "undirected"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_source_knowledge_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

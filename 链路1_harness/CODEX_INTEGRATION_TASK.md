@@ -20,7 +20,7 @@
 2. 阅读本目录 `README.md` 和 `HARNESS_ARCHITECTURE.md`；
 3. 检查现有前后端、路由、状态管理、文件存储和 LLM 调用方式；
 4. 不迁移现有技术栈；
-5. 不把 `AGNES_API_KEY` 放进 H5；
+5. 不把 `DASHSCOPE_API_KEY` 放进 H5；
 6. 先列出准备修改的文件，再编码。
 
 ## 必须完成
@@ -70,21 +70,21 @@ SkillRegistry.claimVerification
 - 最终卡片规格为 310×180；
 - 不要改回“只生成贴纸、代码填文字”。
 
-### 6. 接入 Agnes Tool
+### 6. 接入万相 2.7 Tool
 
-服务端读取新的 `AGNES_API_KEY`。
+服务端读取新的 `DASHSCOPE_API_KEY`。
 
 调用：
 
 ```text
 POST https://apihub.agnes-ai.com/v1/images/generations
-model: agnes-image-2.1-flash
-size: 1K
+model: wan2.7-image-pro
+size: 2K
 ratio: 16:9
 extra_body.response_format: url
 ```
 
-URL 返回后立即下载，裁切并持久化为 310×180。生产环境改成现有对象存储，Demo 可以先保存到 `public/generated/chain1-cards`。
+URL 返回后立即下载，裁切并持久化为 `930×540` 的 3 倍屏资源，H5 仍以 `310×180` CSS px 展示。生产环境改成现有对象存储，Demo 可以先保存到 `public/generated/chain1-cards`。
 
 ### 7. 接入 Visual Grader
 
@@ -96,7 +96,7 @@ URL 返回后立即下载，裁切并持久化为 310×180。生产环境改成�
 - 视觉语义是否匹配；
 - 是否出现 `must_not_show`。
 
-失败后把具体修正指令交回 Agnes，最多生成 3 次。
+失败后把具体修正指令交回万相 2.7，最多生成 3 次。
 
 ### 8. 接入播放页
 
@@ -137,7 +137,7 @@ failed
 - 作者已经用画面解释数字 → 抑制；
 - 同一片段命中两类 → 仲裁；
 - 生图失败 → 文字降级但视频仍 ready；
-- 验证真假不调用 Agnes；
+- 验证真假不调用生图模型；
 - API Key 不进入客户端 bundle 和 Trace。
 
 ## 完成后汇报
@@ -145,7 +145,7 @@ failed
 1. 修改文件；
 2. 运行命令；
 3. 测试结果；
-4. 真实 Skill / LLM / Agnes 是否已调用；
+4. 真实 Skill / LLM / 万相 2.7 是否已调用；
 5. 仍使用 Mock 的部分；
 6. 未完成项；
 7. 不要声称未验证的功能已经可用。

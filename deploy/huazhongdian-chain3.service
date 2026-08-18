@@ -1,0 +1,19 @@
+[Unit]
+Description=Huazhongdian chain3 reconstruction harness
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/huazhongdian/app/链路3_harness
+EnvironmentFile=/etc/huazhongdian.env
+Environment=HARNESS_PROVIDER=openai-compatible
+Environment=HARNESS_PORT=8787
+Environment=HARNESS_DATA_DIR=/var/lib/huazhongdian/chain3
+ExecStart=/usr/bin/node src/api/server.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

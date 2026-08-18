@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PathReviewResult",
+  "type": "object",
+  "required": [
+    "passed",
+    "score",
+    "dimension_scores",
+    "issues",
+    "status"
+  ],
+  "properties": {
+    "passed": {
+      "type": "boolean"
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "dimension_scores": {
+      "type": "object"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "issue_id",
+          "type",
+          "severity",
+          "message",
+          "retry_step"
+        ],
+        "properties": {
+          "issue_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "affected_node_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "retry_step": {
+            "enum": [
+              "intent_parsing",
+              "video_set_assessment",
+              "source_knowledge_extraction",
+              "knowledge_normalization",
+              "relation_building",
+              "knowledge_filtering",
+              "path_planning",
+              "source_selection",
+              "duration_calculation",
+              "manual_review"
+            ]
+          },
+          "repair_instruction": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "approved_path": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "needs_review"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

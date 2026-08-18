@@ -75,6 +75,33 @@ test("batch router limits one remote request to twelve candidates", async () => 
   assert.equal(decisions.size, 25);
 });
 
+test("route model only receives ASR text and timestamps", async () => {
+  let receivedCandidate: Record<string, unknown> | undefined;
+  const invoker: JsonInvoker = {
+    async invokeJson<T>(args: { input: unknown }): Promise<T> {
+      receivedCandidate = (args.input as { candidates: Record<string, unknown>[] }).candidates[0];
+      return {
+        decisions: [{
+          candidate_id: "c1",
+          is_candidate: false,
+          primary_route: "discard",
+          route_scores: { abstract_to_intuitive: 0, knowledge_gap: 0, claim_verification: 0, discard: 1 },
+          confidence: 1,
+          reason: "discard",
+          evidence: [],
+        }],
+      } as T;
+    },
+  };
+  await new PromptRouteClassifier(invoker).classifyBatch(snapshot, [candidate({
+    ocrText: ["画面文字"],
+    visualContext: [{ id: "frame-1", startMs: 0, endMs: 1000, description: "关键帧" }],
+  })]);
+  assert.equal(receivedCandidate?.sourceText, "65℃以上的热饮");
+  assert.equal("ocrText" in (receivedCandidate ?? {}), false);
+  assert.equal("visualEvidence" in (receivedCandidate ?? {}), false);
+});
+
 test("a failed route batch falls back without failing the whole video", async () => {
   const invoker: JsonInvoker = {
     async invokeJson<T>(): Promise<T> {
